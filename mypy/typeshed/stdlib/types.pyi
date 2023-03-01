@@ -54,7 +54,7 @@ if sys.version_info >= (3, 9):
     __all__ += ["GenericAlias"]
 
 if sys.version_info >= (3, 10):
-    __all__ += ["EllipsisType", "NoneType", "NotImplementedType", "UnionType"]
+    __all__ += ["EllipsisType", "NoneType", "NotImplementedType", "UnionType", "IntersectionType"]
 
 # Note, all classes "defined" here require special handling.
 
@@ -613,3 +613,7 @@ if sys.version_info >= (3, 10):
         def __args__(self) -> tuple[Any, ...]: ...
         def __or__(self, __obj: Any) -> UnionType: ...
         def __ror__(self, __obj: Any) -> UnionType: ...
+    @final
+    class IntersectionType:
+        @property
+        def __args__(self) -> tuple[Any, ...]: ...
