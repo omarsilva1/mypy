@@ -11,6 +11,7 @@ from mypy.util import FancyFormatter
 
 
 def console_entry() -> None:
+    print("Running locally.")
     try:
         main()
         sys.stdout.flush()
