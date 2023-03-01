@@ -205,6 +205,7 @@ from mypy.types import (
     TypeVarType,
     UnboundType,
     UninhabitedType,
+    IntersectionType,
     UnionType,
     flatten_nested_unions,
     get_proper_type,
