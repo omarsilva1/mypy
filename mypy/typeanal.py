@@ -81,6 +81,7 @@ from mypy.types import (
     UnboundType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     UnpackType,
     bad_type_type_item,
     callable_with_ellipsis,
@@ -99,6 +100,7 @@ type_constructors: Final = {
     "typing.Tuple",
     "typing.Type",
     "typing.Union",
+    "typing.Intersection",
     *LITERAL_TYPE_NAMES,
     *ANNOTATED_TYPE_NAMES,
 }
@@ -536,6 +538,10 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
         elif fullname == "typing.Union":
             items = self.anal_array(t.args)
             return UnionType.make_union(items)
+        elif fullname == "typing.Intersection":
+            items = self.anal_array(t.args)
+            # TODO OMAR: make intersection
+            return UnionType.make_union(items)
         elif fullname == "typing.Optional":
             if len(t.args) != 1:
                 self.fail(
@@ -818,6 +824,9 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
         # TODO: Move this message building logic to messages.py.
         notes: list[str] = []
         if isinstance(sym.node, Var):
+            print("returning is not valid as a type")
+            print(sym.node)
+            print(Var)
             notes.append(
                 "See https://mypy.readthedocs.io/en/"
                 "stable/common_issues.html#variables-vs-type-aliases"
