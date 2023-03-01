@@ -2704,6 +2704,96 @@ class UnionType(ProperType):
         return UnionType([deserialize_type(t) for t in data["items"]])
 
 
+class IntersectionType(ProperType):
+    """The intersection type Intersection[T1, ..., Tn] (at least one type argument)."""
+
+    __slots__ = ("items", "is_evaluated", "uses_pep604_syntax")
+
+    def __init__(
+        self,
+        items: Sequence[Type],
+        line: int = -1,
+        column: int = -1,
+        is_evaluated: bool = True,
+        uses_pep604_syntax: bool = False,
+    ) -> None:
+        super().__init__(line, column)
+        # We must keep this false to avoid crashes during semantic analysis.
+        # TODO: maybe switch this to True during type-checking pass?
+        self.items = flatten_nested_unions(items, handle_type_alias_type=False)
+        # is_evaluated should be set to false for type comments and string literals
+        self.is_evaluated = is_evaluated
+        # uses_pep604_syntax is True if Union uses OR syntax (X | Y)
+        self.uses_pep604_syntax = uses_pep604_syntax
+
+    def can_be_true_default(self) -> bool:
+        return any(item.can_be_true for item in self.items)
+
+    def can_be_false_default(self) -> bool:
+        return any(item.can_be_false for item in self.items)
+
+    def __hash__(self) -> int:
+        return hash(frozenset(self.items))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, UnionType):
+            return NotImplemented
+        return frozenset(self.items) == frozenset(other.items)
+
+    @overload
+    @staticmethod
+    def make_union(items: Sequence[ProperType], line: int = -1, column: int = -1) -> ProperType:
+        ...
+
+    @overload
+    @staticmethod
+    def make_union(items: Sequence[Type], line: int = -1, column: int = -1) -> Type:
+        ...
+
+    @staticmethod
+    def make_union(items: Sequence[Type], line: int = -1, column: int = -1) -> Type:
+        if len(items) > 1:
+            return UnionType(items, line, column)
+        elif len(items) == 1:
+            return items[0]
+        else:
+            return UninhabitedType()
+
+    def length(self) -> int:
+        return len(self.items)
+
+    def accept(self, visitor: TypeVisitor[T]) -> T:
+        return visitor.visit_union_type(self)
+
+    def has_readable_member(self, name: str) -> bool:
+        """For a tree of unions of instances, check whether all instances have a given member.
+
+        TODO: Deal with attributes of TupleType etc.
+        TODO: This should probably be refactored to go elsewhere.
+        """
+        return all(
+            (isinstance(x, UnionType) and x.has_readable_member(name))
+            or (isinstance(x, Instance) and x.type.has_readable_member(name))
+            for x in get_proper_types(self.relevant_items())
+        )
+
+    def relevant_items(self) -> list[Type]:
+        """Removes NoneTypes from Unions when strict Optional checking is off."""
+        if state.strict_optional:
+            return self.items
+        else:
+            return [i for i in self.items if not isinstance(get_proper_type(i), NoneType)]
+
+    def serialize(self) -> JsonDict:
+        return {".class": "IntersectionType", "items": [t.serialize() for t in self.items]}
+
+    @classmethod
+    def deserialize(cls, data: JsonDict) -> IntersectionType:
+        assert data[".class"] == "IntersectionType"
+        return IntersectionType([deserialize_type(t) for t in data["items"]])
+
+
+
 class PartialType(ProperType):
     """Type such as List[?] where type arguments are unknown, or partial None type.
 
