@@ -60,7 +60,7 @@ from mypy.subtypes import (
     is_same_type,
     is_subtype,
 )
-from mypy.typeops import separate_union_literals
+from mypy.typeops import separate_literals
 from mypy.types import (
     AnyType,
     CallableType,
@@ -85,6 +85,7 @@ from mypy.types import (
     UnboundType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     UnpackType,
     get_proper_type,
     get_proper_types,
@@ -104,6 +105,7 @@ TYPES_FOR_UNIMPORTED_HINTS: Final = {
     "typing.Tuple",
     "typing.TypeVar",
     "typing.Union",
+    "typing.Intersection"
     "typing.cast",
 }
 
@@ -477,6 +479,21 @@ class MessageBuilder:
                     ),
                     context,
                     code=codes.UNION_ATTR,
+                )
+            elif isinstance(original_type, IntersectionType):
+                # The checker passes "object" in lieu of "None" for attribute
+                # checks, so we manually convert it back.
+                typ_format, orig_type_format = format_type_distinctly(typ, original_type)
+                if typ_format == '"object"' and any(
+                    type(item) == NoneType for item in original_type.items
+                ):
+                    typ_format = '"None"'
+                self.fail(
+                    'Item {} of {} has no attribute "{}"{}'.format(
+                        typ_format, orig_type_format, member, extra
+                    ),
+                    context,
+                    code=codes.INTERSECTION_ATTR,
                 )
             elif isinstance(original_type, TypeVarType):
                 bound = get_proper_type(original_type.upper_bound)
@@ -2344,7 +2361,7 @@ def format_type_inner(
     elif isinstance(typ, LiteralType):
         return f"Literal[{format_literal_value(typ)}]"
     elif isinstance(typ, UnionType):
-        literal_items, union_items = separate_union_literals(typ)
+        literal_items, union_items = separate_literals(typ)
 
         # Coalesce multiple Literal[] members. This also changes output order.
         # If there's just one Literal item, retain the original ordering.
@@ -2372,6 +2389,24 @@ def format_type_inner(
                 s = f"Union[{format_list(typ.items)}]"
 
             return s
+    elif isinstance(typ, IntersectionType):
+        literal_items, intersection_items = separate_literals(typ)
+
+        # Coalesce multiple Literal[] members. This also changes output order.
+        # If there's just one Literal item, retain the original ordering.
+        if len(literal_items) > 1:
+            literal_str = "Literal[{}]".format(
+                ", ".join(format_literal_value(t) for t in literal_items)
+            )
+
+            if intersection_items:
+                return f"Intersection[{format_list(intersection_items)}, {literal_str}]"
+            else:
+                return literal_str
+        else:
+            s = f"Intersection[{format_list(typ.items)}]"
+
+        return s
     elif isinstance(typ, NoneType):
         return "None"
     elif isinstance(typ, AnyType):
