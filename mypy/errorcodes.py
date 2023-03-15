@@ -56,6 +56,9 @@ TYPE_VAR: Final = ErrorCode("type-var", "Check that type variable values are val
 UNION_ATTR: Final = ErrorCode(
     "union-attr", "Check that attribute exists in each item of a union", "General"
 )
+INTERSECTION_ATTR: Final = ErrorCode(
+    "intersection-attr", "Check that attribute exists in each item of an intersection", "General"
+)
 INDEX: Final = ErrorCode("index", "Check indexing operations", "General")
 OPERATOR: Final = ErrorCode("operator", "Check that operator is valid for operands", "General")
 LIST_ITEM: Final = ErrorCode(
