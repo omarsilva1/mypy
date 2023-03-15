@@ -56,6 +56,7 @@ from mypy.types import (
     TypeVarType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     UnpackType,
     flatten_nested_unions,
     get_proper_type,
@@ -1003,19 +1004,19 @@ def is_redundant_literal_instance(general: ProperType, specific: ProperType) -> 
     return False
 
 
-def separate_union_literals(t: UnionType) -> tuple[Sequence[LiteralType], Sequence[Type]]:
-    """Separate literals from other members in a union type."""
+def separate_literals(t: UnionType | IntersectionType) -> tuple[Sequence[LiteralType], Sequence[Type]]:
+    """Separate literals from other members in a union or intersection type."""
     literal_items = []
-    union_items = []
+    items = []
 
     for item in t.items:
         proper = get_proper_type(item)
         if isinstance(proper, LiteralType):
             literal_items.append(proper)
         else:
-            union_items.append(item)
+            items.append(item)
 
-    return literal_items, union_items
+    return literal_items, items
 
 
 def try_getting_instance_fallback(typ: Type) -> Instance | None:
