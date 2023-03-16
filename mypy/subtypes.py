@@ -56,6 +56,7 @@ from mypy.types import (
     UnboundType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     UnpackType,
     _flattened,
     get_proper_type,
@@ -171,6 +172,7 @@ def is_subtype(
         #     B = Union[int, Tuple[B, ...]]
         # When checking if A <: B we push pair (A, B) onto 'assuming' stack, then when after few
         # steps we come back to initial call is_subtype(A, B) and immediately return True.
+        # TODO OMAR: add intersection check for recursive
         with pop_on_exit(type_state.get_assumptions(is_proper=False), left, right):
             return _is_subtype(left, right, subtype_context, proper_subtype=False)
     return _is_subtype(left, right, subtype_context, proper_subtype=False)
@@ -925,6 +927,40 @@ class SubtypeVisitor(TypeVisitor[bool]):
                 if lit_type in fast_check:
                     continue
                 if not self._is_subtype(item, self.orig_right):
+                    return False
+            return True
+
+        return all(self._is_subtype(item, self.orig_right) for item in left.items)
+
+    def visit_intersection_type(self, left: IntersectionType) -> bool:
+        if isinstance(self.right, Instance):
+            return any(self._is_subtype(item, self.orig_right) for item in left.relevant_items())
+
+        elif isinstance(self.right, IntersectionType):
+            # prune literals early to avoid nasty quadratic behavior which would otherwise arise when checking
+            # subtype relationships between slightly different narrowings of an Enum
+            # we achieve O(N+M) instead of O(N*M)
+            fast_check: set[ProperType] = set()
+
+            for item in _flattened(left.relevant_items()):
+                p_item = get_proper_type(item)
+                if isinstance(p_item, LiteralType):
+                    fast_check.add(p_item)
+                elif isinstance(p_item, Instance):
+                    if p_item.last_known_value is None:
+                        fast_check.add(p_item)
+                    else:
+                        fast_check.add(p_item.last_known_value)
+
+            # TODO OMAR: should we check if types are incompatible?
+            for item in self.right.relevant_items():
+                p_item = get_proper_type(item)
+                if p_item in fast_check:
+                    continue
+                lit_type = mypy.typeops.simple_literal_type(p_item)
+                if lit_type in fast_check:
+                    continue
+                if not any(self._is_subtype(fast_check_item, item) for fast_check_item in fast_check):
                     return False
             return True
 

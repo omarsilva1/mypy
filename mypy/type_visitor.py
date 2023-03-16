@@ -48,6 +48,7 @@ from mypy.types import (
     UnboundType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     UnpackType,
     get_proper_type,
 )
@@ -129,6 +130,10 @@ class TypeVisitor(Generic[T]):
 
     @abstractmethod
     def visit_union_type(self, t: UnionType) -> T:
+        pass
+
+    @abstractmethod
+    def visit_intersection_type(self, t: IntersectionType) -> T:
         pass
 
     @abstractmethod
@@ -273,6 +278,9 @@ class TypeTranslator(TypeVisitor[Type]):
     def visit_union_type(self, t: UnionType) -> Type:
         return UnionType(self.translate_types(t.items), t.line, t.column)
 
+    def visit_intersection_type(self, t: IntersectionType) -> Type:
+        return IntersectionType(self.translate_types(t.items), t.line, t.column)
+
     def translate_types(self, types: Iterable[Type]) -> list[Type]:
         return [t.accept(self) for t in types]
 
@@ -390,6 +398,9 @@ class TypeQuery(SyntheticTypeVisitor[T]):
         return t.type.accept(self)
 
     def visit_union_type(self, t: UnionType) -> T:
+        return self.query_types(t.items)
+
+    def visit_intersection_type(self, t: IntersectionType) -> T:
         return self.query_types(t.items)
 
     def visit_overloaded(self, t: Overloaded) -> T:
@@ -533,6 +544,9 @@ class BoolTypeQuery(SyntheticTypeVisitor[bool]):
         return t.type.accept(self)
 
     def visit_union_type(self, t: UnionType) -> bool:
+        return self.query_types(t.items)
+
+    def visit_intersection_type(self, t: IntersectionType) -> bool:
         return self.query_types(t.items)
 
     def visit_overloaded(self, t: Overloaded) -> bool:
