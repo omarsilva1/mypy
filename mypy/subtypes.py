@@ -628,7 +628,10 @@ class SubtypeVisitor(TypeVisitor[bool]):
                 return self._is_subtype(call, right)
             return False
         if isinstance(right, IntersectionType):
-            return self._is_subtype(IntersectionType.make_intersection(left.type.bases), right)
+            if len(left.type.bases) > 1 or IntersectionType.make_intersection(left.type.bases).type.fullname != "builtins.object":
+                return self._is_subtype(IntersectionType.make_intersection(left.type.bases), right)
+            else:
+                return False
         else:
             return False
 
