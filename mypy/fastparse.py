@@ -113,6 +113,7 @@ from mypy.types import (
     TypeOfAny,
     UnboundType,
     UnionType,
+    IntersectionType,
 )
 from mypy.util import bytes_to_human_readable_repr, unnamed_function
 
@@ -383,6 +384,8 @@ def parse_type_string(
             node.original_str_fallback = expr_fallback_name
             return node
         elif isinstance(node, UnionType):
+            return node
+        elif isinstance(node, IntersectionType):
             return node
         else:
             return RawExpressionType(expr_string, expr_fallback_name, line, column)
