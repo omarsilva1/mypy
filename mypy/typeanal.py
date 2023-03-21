@@ -540,8 +540,7 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
             return UnionType.make_union(items)
         elif fullname == "typing.Intersection":
             items = self.anal_array(t.args)
-            # TODO OMAR: make intersection
-            return UnionType.make_union(items)
+            return IntersectionType.make_intersection(items)
         elif fullname == "typing.Optional":
             if len(t.args) != 1:
                 self.fail(
