@@ -628,7 +628,8 @@ class SubtypeVisitor(TypeVisitor[bool]):
                 return self._is_subtype(call, right)
             return False
         if isinstance(right, IntersectionType):
-            if len(left.type.bases) > 1 or IntersectionType.make_intersection(left.type.bases).type.fullname != "builtins.object":
+            if len(left.type.bases) > 1 or IntersectionType.make_intersection(
+                left.type.bases).type.fullname != "builtins.object":
                 return self._is_subtype(IntersectionType.make_intersection(left.type.bases), right)
             else:
                 return False
@@ -968,6 +969,19 @@ class SubtypeVisitor(TypeVisitor[bool]):
                 if not any(self._is_subtype(fast_check_item, item) for fast_check_item in fast_check):
                     return False
             return True
+        elif isinstance(self.right, CallableType):
+            # TODO OMAR: only implemented for the case that sigma is one type only, could be extended recursively
+            # TODO OMAR: add fast and verified BCD
+            # check case where (σ -> τ1) & (σ -> τ2) <= σ -> (τ1 & τ2)
+            # check left hand sigma is equal
+            if len(left.items) == 2 and left.items[0].alias.target.arg_types == left.items[1].alias.target.arg_types:
+                # check if right hand sigma is equal to left
+                if type(self.right) == CallableType and left.items[0].alias.target.arg_types == self.right.arg_types:
+                    # check if t1 und t2 are in right hand return types
+                    for left_item in left.items:
+                        if left_item.alias.target.ret_type not in self.right.ret_type.items:
+                            return False
+                    return True
 
         return all(self._is_subtype(item, self.orig_right) for item in left.items)
 
