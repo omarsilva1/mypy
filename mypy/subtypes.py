@@ -974,12 +974,14 @@ class SubtypeVisitor(TypeVisitor[bool]):
             # TODO OMAR: add fast and verified BCD
             # check case where (σ -> τ1) & (σ -> τ2) <= σ -> (τ1 & τ2)
             # check left hand sigma is equal
-            if len(left.items) == 2 and left.items[0].alias.target.arg_types == left.items[1].alias.target.arg_types:
+            if len(left.items) == 2:
+                callable_types = [item.alias.target if isinstance(item, TypeAliasType) else item for item in left.items]
+
                 # check if right hand sigma is equal to left
-                if type(self.right) == CallableType and left.items[0].alias.target.arg_types == self.right.arg_types:
+                if type(self.right) == CallableType and callable_types[0].arg_types == self.right.arg_types:
                     # check if t1 und t2 are in right hand return types
-                    for left_item in left.items:
-                        if left_item.alias.target.ret_type not in self.right.ret_type.items:
+                    for left_item in callable_types:
+                        if left_item.ret_type not in self.right.ret_type.items:
                             return False
                     return True
 
