@@ -30,6 +30,7 @@ from mypy.types import (
     UnboundType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     get_proper_type,
     has_recursive_types,
 )
@@ -326,6 +327,77 @@ class TypeOpsSuite(Suite):
         assert is_proper_subtype(UnionType([fx.a, fx.b]), UnionType([fx.a, fx.b, fx.c]))
         assert not is_proper_subtype(UnionType([fx.a, fx.b]), UnionType([fx.b, fx.c]))
 
+    def test_intersection(self) -> None:
+        fx = self.fx_co
+
+        lit1 = fx.lit1
+        lit2 = fx.lit2
+        lit3 = fx.lit3
+        # top = fx.o
+        top = fx.anyt
+
+        # # # Test BCD83 Rules # # #
+
+        # σ ≤ ω
+        assert is_subtype(lit1, fx.o)
+
+        # ω ≤ ω → ω
+        assert is_subtype(top, fx.callable(top, top))
+
+        # σ ∩ τ ≤ σ, σ ∩ τ ≤ τ
+        self.assert_not_subtype(self.intersection_type(fx.d), fx.a)
+        assert is_subtype(self.intersection_type(fx.a, fx.d), fx.a)
+        assert is_subtype(self.intersection_type(fx.a, fx.d), fx.d)
+        assert is_subtype(self.fx.ad, self.fx.a)
+        assert is_subtype(self.fx.ad, self.fx.d)
+
+        # (σ → τ1) ∩ (σ → τ2) ≤ σ → τ1 ∩ τ2
+        assert is_subtype(
+            self.intersection_type(
+                fx.callable(fx.sigma_one, fx.tau_one),
+                fx.callable(fx.sigma_one, fx.tau_two)),
+            fx.callable(fx.sigma_one, self.intersection_type(fx.tau_one, fx.tau_two))
+        )
+        self.assert_not_arrow_cases(fx)
+
+        # σ ≤ τ1 ∧ σ ≤ τ2 ⇒ σ ≤ τ1 ∩ τ2
+        assert is_subtype(self.fx.ad, self.intersection_type(self.fx.a, self.fx.d))
+
+        # σ2 ≤ σ1 ∧ τ1 ≤ τ2 ⇒ σ1 → τ1 ≤ σ2 → τ2
+        # covariance and contravariance check
+        sigma_one = self.fx.vehicle
+        sigma_two = self.fx.car
+        tau_one = self.fx.manager
+        tau_two = self.fx.employee
+        assert is_subtype(sigma_two, sigma_one) and is_subtype(tau_one, tau_two)
+        assert is_subtype(
+            fx.callable(sigma_one, tau_one),
+            fx.callable(sigma_two, tau_two)
+        )
+
+        # TODO OMAR: add subtyping without inheritance through abc
+        #   https://stackoverflow.com/questions/38275148/python-subclass-that-doesnt-inherit-attributes
+
+    def assert_not_arrow_cases(self, fx):
+        assert not is_subtype(
+            self.intersection_type(
+                fx.callable(fx.sigma_one, fx.tau_one),
+                fx.callable(fx.sigma_one, fx.sigma_two)),
+            fx.callable(fx.sigma_one, self.intersection_type(fx.tau_one, fx.tau_two))
+        )
+        assert not is_subtype(
+            self.intersection_type(
+                fx.callable(fx.sigma_one, fx.tau_one),
+                fx.callable(fx.sigma_one, fx.tau_two)),
+            fx.callable(fx.sigma_one, self.intersection_type(fx.sigma_two, fx.tau_two))
+        )
+        assert not is_subtype(
+            self.intersection_type(
+                fx.callable(fx.sigma_one, fx.tau_one),
+                fx.callable(fx.sigma_one, fx.tau_two)),
+            fx.callable(fx.sigma_two, self.intersection_type(fx.tau_one, fx.tau_two))
+        )
+
     def test_is_proper_subtype_covariance(self) -> None:
         fx_co = self.fx_co
 
@@ -605,6 +677,15 @@ class TypeOpsSuite(Suite):
 
     def tuple(self, *a: Type) -> TupleType:
         return TupleType(list(a), self.fx.std_tuple)
+
+    def intersection_type(self, *a: Type) -> IntersectionType:
+        return IntersectionType(list(a))
+
+    def assert_subtype(self, s: Type, t: Type) -> None:
+        assert is_subtype(s, t), f"{s} not subtype of {t}"
+
+    def assert_not_subtype(self, s: Type, t: Type) -> None:
+        assert not is_subtype(s, t), f"{s} subtype of {t}"
 
     def callable(self, vars: list[str], *a: Type) -> CallableType:
         """callable(args, a1, ..., an, r) constructs a callable with
@@ -1287,3 +1368,4 @@ class RemoveLastKnownValueSuite(Suite):
         t2 = remove_instance_last_known_values(t)
         assert type(t2) is UnionType
         assert t2.items == expected
+
