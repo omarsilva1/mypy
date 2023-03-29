@@ -70,6 +70,24 @@ class TypeFixture:
         self.nonet = NoneType()
         self.uninhabited = UninhabitedType()
 
+        # Types used to test intersection and their subtyping rules
+        self.sigma_one_i = self.make_type_info("SigmaOne", mro=[self.oi])  # class SigmaOne
+        self.sigma_two_i = self.make_type_info("SigmaTwo", mro=[self.oi])  # class SigmaTwo
+        self.tau_one_i = self.make_type_info("TauOne", mro=[self.oi])  # class TauOne
+        self.tau_two_i = self.make_type_info("TauTwo", mro=[self.oi])  # class TauTwo
+        self.sigma_one = Instance(self.sigma_one_i, [])
+        self.sigma_two = Instance(self.sigma_two_i, [])
+        self.tau_one = Instance(self.tau_one_i, [])
+        self.tau_two = Instance(self.tau_two_i, [])
+        self.employee_i = self.make_type_info("Employee", mro=[self.oi])
+        self.employee = Instance(self.employee_i, [])
+        self.manager_i = self.make_type_info("Manager", mro=[self.oi, self.employee_i], bases=[self.employee])
+        self.manager = Instance(self.manager_i, [])
+        self.vehicle_i = self.make_type_info("Vehicle", mro=[self.oi])
+        self.vehicle = Instance(self.vehicle_i, [])
+        self.car_i = self.make_type_info("Car", mro=[self.oi, self.vehicle_i], bases=[self.vehicle])
+        self.car = Instance(self.car_i, [])
+
         # Abstract class TypeInfos
 
         # class F
@@ -140,6 +158,8 @@ class TypeFixture:
         self.b = Instance(self.bi, [])  # B
         self.c = Instance(self.ci, [])  # C
         self.d = Instance(self.di, [])  # D
+        self.adi = self.make_type_info("AD", mro=[self.ai, self.di, self.oi], bases=[self.a, self.d])  # class AD(A,D)
+        self.ad = Instance(self.adi, [])
 
         self.e = Instance(self.ei, [])  # E
         self.e2 = Instance(self.e2i, [])  # E2
