@@ -177,6 +177,24 @@ def is_subtype(
             return _is_subtype(left, right, subtype_context, proper_subtype=False)
     return _is_subtype(left, right, subtype_context, proper_subtype=False)
 
+def simplify_omega(term: Type) -> Type:
+    if isinstance(term, IntersectionType):
+        filtered = [item for item in term.items if not isinstance(item, AnyType)]
+        return filtered[0] if len(filtered) == 1 else IntersectionType(filtered)
+    if isinstance(term, UnionType):
+        return AnyType(TypeOfAny.explicit) if any(isinstance(item, AnyType) for item in term.items) else term
+    if isinstance(term, CallableType):
+        # TODO OMAR: check alias type like in visit_intersection_type
+        return AnyType(TypeOfAny.explicit) if isinstance(term.ret_type, AnyType) else term
+    return term
+def convert_to_cnf():
+    pass
+
+def convert_to_dnf():
+    pass
+
+def convert_to_anf():
+    pass
 
 def is_proper_subtype(
     left: Type,

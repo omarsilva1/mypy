@@ -9,7 +9,7 @@ from mypy.join import join_simple, join_types
 from mypy.meet import meet_types, narrow_declared_type
 from mypy.nodes import ARG_OPT, ARG_POS, ARG_STAR, ARG_STAR2, CONTRAVARIANT, COVARIANT, INVARIANT
 from mypy.state import state
-from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype
+from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype, simplify_omega
 from mypy.test.helpers import Suite, assert_equal, assert_type, skip
 from mypy.test.typefixture import InterfaceTypeFixture, TypeFixture
 from mypy.typeops import false_only, make_simplified_union, true_only
@@ -326,6 +326,31 @@ class TypeOpsSuite(Suite):
         assert is_proper_subtype(fx.a, UnionType([fx.a, fx.b]))
         assert is_proper_subtype(UnionType([fx.a, fx.b]), UnionType([fx.a, fx.b, fx.c]))
         assert not is_proper_subtype(UnionType([fx.a, fx.b]), UnionType([fx.b, fx.c]))
+
+    def test_simplify_omega(self) -> None:
+        # ω ∩ σ and σ ∩ ω rewrite to σ;
+        # ω ∪ σ and σ ∪ ω rewrite to ω;
+        # σ → ω rewrites to ω.
+        fx = self.fx_co
+        omega = fx.anyt
+
+        test_cases = [
+            (IntersectionType([omega, fx.a]), fx.a),
+            (IntersectionType([fx.a, omega]), fx.a),
+            (IntersectionType([fx.a, fx.b, fx.d, omega]), IntersectionType([fx.a, fx.b, fx.d])),
+            (IntersectionType([fx.a, fx.d]), IntersectionType([fx.a, fx.d])),
+            (UnionType([omega, fx.a]), omega),
+            (UnionType([fx.a, omega]), omega),
+            (UnionType([fx.a, fx.b, fx.d, omega]), omega),
+            (UnionType([fx.a, fx.b, fx.d]), UnionType([fx.a, fx.b, fx.d])),
+            (fx.callable(fx.a, omega), omega),
+            (fx.callable(fx.a, fx.d), fx.callable(fx.a, fx.d)),
+            (fx.callable(omega, fx.a), fx.callable(omega, fx.a))
+        ]
+
+        for test_case, expected_result in test_cases:
+            simplified = simplify_omega(test_case)
+            assert_equal(simplified, expected_result)
 
     def test_intersection(self) -> None:
         fx = self.fx_co
