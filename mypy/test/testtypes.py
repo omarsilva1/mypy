@@ -492,7 +492,17 @@ class TypeOpsSuite(Suite):
             (intersect(a, union(c, b, d)), union(intersect(a, b), intersect(a, c), intersect(a, d))),
 
             # a ∧ b ∧ (c ∨ b ∨ d) => (a ∧ b ∧ c) ∨ (a ∧ b ∧ d) ∨ (a ∧ b ∧ e)
-            (intersect(a, b, union(c, b, d)), union(intersect(a, b, c), intersect(a, b, d), intersect(a, b, e))),
+            (intersect(a, b, union(c, d, e)), union(intersect(a, b, c), intersect(a, b, d), intersect(a, b, e))),
+
+            # (a -> b) => (a -> b)
+            (arrow(a, b), arrow(a, b)),
+
+            # a -> (b ∧ (c ∨ d)) => a -> ((b ∧ c) ∨ (b ∧ d))
+            (arrow(a, intersect(b, union(c, d))), arrow(a, union(intersect(b, c), intersect(b, d)))),
+
+            # (b ∧ (c ∨ d)) -> a => ((b ∧ c) ∨ (b ∧ d)) -> a
+            (arrow(intersect(b, union(c, d)), a), arrow(union(intersect(b, c), intersect(b, d)), a)),
+
         ]
 
         for test_case, expected_result in test_cases:
