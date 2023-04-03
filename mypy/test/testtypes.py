@@ -450,6 +450,52 @@ class TypeOpsSuite(Suite):
             converted = convert_to_cnf(test_case)
             assert_equal(converted, expected_result)
 
+    def test_convert_to_dnf(self) -> None:
+        fx = self.fx_co
+        def intersect(*a: Type) -> IntersectionType:
+            return IntersectionType(list(a))
+
+        def union(*a: Type) -> UnionType:
+            return UnionType(list(a))
+
+        def arrow(self, *a: Type) -> CallableType:
+            return fx.callable(self, *a)
+
+        # – σ ∩ (τ ∪ ρ) rewrites to (σ ∩ τ ) ∪ (σ ∩ ρ);
+        # – (σ ∪ τ) ∩ ρ rewrites to (σ ∩ ρ) ∪ (τ ∩ ρ).
+        a = fx.a
+        b = fx.b
+        c = fx.c
+        d = fx.d
+        e = fx.e
+
+        test_cases = [
+            # (a ∨ b) => (a ∨ b)
+            (union(a, b), union(a, b)),
+
+            # (a ∧ b) => (a ∧ b)
+            (intersect(a, b), intersect(a, b)),
+
+            # (a ∧ b) ∨ (c ∧ d) => (a ∧ b) ∨ (c ∧ d)
+            (union(intersect(a, b), intersect(c, d)), union(intersect(a, b), intersect(c, d))),
+
+            # a ∧ (c ∨ b) => (a ∧ c) ∨ (a ∧ b)
+            (intersect(a, union(c, b)), union(intersect(a, c), intersect(a, b))),
+
+            # (c ∨ b) ∧ a => (a ∧ c) ∨ (a ∧ b)
+            (intersect(union(c, b), a), union(intersect(a, c), intersect(a, b))),
+
+            # a ∧ (c ∨ b ∨ d) => (a ∧ b) ∨ (a ∧ c) ∨ (a ∧ d)
+            (intersect(a, union(c, b, d)), union(intersect(a, b), intersect(a, c), intersect(a, d))),
+
+            # a ∧ b ∧ (c ∨ b ∨ d) => (a ∧ b ∧ c) ∨ (a ∧ b ∧ d) ∨ (a ∧ b ∧ e)
+            (intersect(a, b, union(c, b, d)), union(intersect(a, b, c), intersect(a, b, d), intersect(a, b, e))),
+        ]
+
+        for test_case, expected_result in test_cases:
+            converted = convert_to_dnf(test_case)
+            assert_equal(converted, expected_result)
+
     def test_intersection(self) -> None:
         fx = self.fx_co
 
