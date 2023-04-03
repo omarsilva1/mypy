@@ -9,7 +9,8 @@ from mypy.join import join_simple, join_types
 from mypy.meet import meet_types, narrow_declared_type
 from mypy.nodes import ARG_OPT, ARG_POS, ARG_STAR, ARG_STAR2, CONTRAVARIANT, COVARIANT, INVARIANT
 from mypy.state import state
-from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype, simplify_omega
+from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype, simplify_omega, \
+    convert_to_cnf, convert_to_dnf, convert_to_anf
 from mypy.test.helpers import Suite, assert_equal, assert_type, skip
 from mypy.test.typefixture import InterfaceTypeFixture, TypeFixture
 from mypy.typeops import false_only, make_simplified_union, true_only
@@ -351,6 +352,103 @@ class TypeOpsSuite(Suite):
         for test_case, expected_result in test_cases:
             simplified = simplify_omega(test_case)
             assert_equal(simplified, expected_result)
+
+    def test_convert_to_cnf(self) -> None:
+        fx = self.fx_co
+        def intersect(*a: Type) -> IntersectionType:
+            return IntersectionType(list(a))
+
+        def union(*a: Type) -> UnionType:
+            return UnionType(list(a))
+
+        def arrow(self, *a: Type) -> CallableType:
+            return fx.callable(self, *a)
+
+        # σ ∪ (τ ∩ ρ) rewrites to (σ ∪ τ ) ∩ (σ ∪ ρ);
+        # (σ ∩ τ ) ∪ ρ rewrites to (σ ∪ ρ) ∩ (τ ∪ ρ);
+        a = fx.a
+        b = fx.b
+        c = fx.c
+        d = fx.d
+        e = fx.e
+
+        test_cases = [
+            (union(a, intersect(b, c)), intersect(union(a, b), union(a, c))),
+            (union(intersect(a, b), c), intersect(union(a, c), union(b, c))),
+            (intersect(intersect(a, b), union(c, intersect(d, e))), intersect(a, b, union(c, d), union(c, e))),
+            # (a ∧ b) ∨ (c ∧ d) => (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
+            (union(intersect(a, b), intersect(c, d)), intersect(
+                union(a, c),
+                union(a, d),
+                union(b, c),
+                union(b, d),
+            )),
+            #
+            # (a ∧ b) ∨ (c ∧ d ∧ e) => (a ∨ c) ∧ (a ∨ d) ∧ (a ∨ e) ∧ (b ∨ c) ∧ (b ∨ d) ∧ (b ∨ e)
+            (union(intersect(a, b), intersect(c, d, e)), intersect(
+                union(a, c),
+                union(a, d),
+                union(a, e),
+                union(b, c),
+                union(b, d),
+                union(b, e)
+            )),
+            #  (c ∧ d ∧ e) ∨ (a ∧ b)  => (a ∨ c) ∧ (a ∨ d) ∧ (a ∨ e) ∧ (b ∨ c) ∧ (b ∨ d) ∧ (b ∨ e)
+            (union(intersect(c, d, e), intersect(a, b)), intersect(
+                union(a, c),
+                union(a, d),
+                union(a, e),
+                union(b, c),
+                union(b, d),
+                union(b, e)
+            )),
+
+            # # more test cases
+            # (a ∨ b) ∧ (c ∨ d) => (a ∨ b) ∧ (c ∨ d) (unchanged since already in CNF)
+            (intersect(union(a, b), union(c, d)), intersect(
+                union(a, b),
+                union(c, d),
+            )),
+
+            # (a ∧ b) ∨ (c ∧ d) => (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
+            (union(intersect(a, b), intersect(c, d)), intersect(
+                union(a, c),
+                union(a, d),
+                union(b, c),
+                union(b, d),
+            )),
+
+            # a ∨ (b ∧ c) => (a ∨ b) ∧ (a ∨ c)
+            (union(a, intersect(b, c)), intersect(
+                union(a, b),
+                union(a, c),
+            )),
+
+            # (a ∧ b ∧ c) ∨ d => (a ∨ d) ∧ (b ∨ d) ∧ (c ∨ d)
+            (union(intersect(a, b, c), d), intersect(
+                union(a, d),
+                union(b, d),
+                union(c, d),
+            )),
+
+            # a ∨ (b ∧ c ∧ d) => (a ∨ b) ∧ (a ∨ c) ∧ (a ∨ d)
+            (union(a, intersect(b, c, d)), intersect(
+                union(a, b),
+                union(a, c),
+                union(a, d),
+            )),
+
+            # # some with arrow
+            # (a -> b) ∨ (c ∧ d) => ((a -> b) ∨ c) ∧ ((a -> b) ∨ d)
+            (union(arrow(a, b), intersect(c, d)), intersect(
+                union(arrow(a, b), c),
+                union(arrow(a, b), d),
+            )),
+        ]
+
+        for test_case, expected_result in test_cases:
+            converted = convert_to_cnf(test_case)
+            assert_equal(converted, expected_result)
 
     def test_intersection(self) -> None:
         fx = self.fx_co
