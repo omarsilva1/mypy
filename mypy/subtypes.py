@@ -187,8 +187,57 @@ def simplify_omega(term: Type) -> Type:
         # TODO OMAR: check alias type like in visit_intersection_type
         return AnyType(TypeOfAny.explicit) if isinstance(term.ret_type, AnyType) else term
     return term
-def convert_to_cnf():
-    pass
+
+
+def _get_intersection_term(items):
+    intersection_index = None
+    for index, item in enumerate(items):
+        if isinstance(item, IntersectionType):
+            intersection_index = index
+            break
+    return intersection_index
+
+
+def _get_any_term(items, intersection_index):
+    item_index = None
+    for index, item in enumerate(items):
+        if index != intersection_index:
+            item_index = index
+            break
+    return item_index
+
+
+def convert_to_cnf(term: Type) -> Type:
+    if isinstance(term, Instance):
+        return term
+    if isinstance(term, CallableType):
+        cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
+        cnf_ret_type = convert_to_cnf(term.ret_type)
+        cnf_arrow = CallableType(arg_types=cnf_arg_types,
+                                 arg_names=term.arg_names,
+                                 ret_type=cnf_ret_type,
+                                 fallback=term.fallback,
+                                 arg_kinds=term.arg_kinds)
+        return cnf_arrow
+    if isinstance(term, IntersectionType):
+        return IntersectionType([convert_to_cnf(item) for item in term.items])
+    if isinstance(term, UnionType):
+        intersection_index = _get_intersection_term(term.items)
+        if intersection_index is None:
+            return UnionType([convert_to_cnf(item) for item in term.items])
+        else:
+            other_item_index = _get_any_term(term.items, intersection_index)
+            if other_item_index is None:
+                return term.items[intersection_index]
+            else:
+                instance_item = term.items[other_item_index]
+                intersection_type_items = term.items[intersection_index].items
+                new_unions = []
+                for item in intersection_type_items:
+                    new_union = UnionType([item, instance_item])
+                    new_unions.append(convert_to_cnf(new_union))
+                return IntersectionType(new_unions)
+
 
 def convert_to_dnf():
     pass
