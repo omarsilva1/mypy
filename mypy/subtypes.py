@@ -236,6 +236,10 @@ def convert_to_cnf(term: Type) -> Type:
                 for item in intersection_type_items:
                     new_union = UnionType([item, instance_item])
                     new_unions.append(convert_to_cnf(new_union))
+                if len(term.items) > 2:
+                    del term.items[intersection_index]
+                    del term.items[other_item_index]
+                    return convert_to_cnf(UnionType(term.items + [IntersectionType(new_unions)]))
                 return IntersectionType(new_unions)
 
 
