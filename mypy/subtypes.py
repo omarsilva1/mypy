@@ -197,6 +197,14 @@ def _get_intersection_term(items):
             break
     return intersection_index
 
+def _get_union_term(items):
+    intersection_index = None
+    for index, item in enumerate(items):
+        if isinstance(item, UnionType):
+            intersection_index = index
+            break
+    return intersection_index
+
 
 def _get_any_term(items, intersection_index):
     item_index = None
@@ -242,9 +250,40 @@ def convert_to_cnf(term: Type) -> Type:
                     return convert_to_cnf(UnionType(term.items + [IntersectionType(new_unions)]))
                 return IntersectionType(new_unions)
 
-
-def convert_to_dnf():
-    pass
+def convert_to_dnf(term: Type) -> Type:
+    if isinstance(term, Instance):
+        return term
+    if isinstance(term, CallableType):
+        dnf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
+        dnf_ret_type = convert_to_dnf(term.ret_type)
+        dnf_arrow = CallableType(arg_types=dnf_arg_types,
+                                 arg_names=term.arg_names,
+                                 ret_type=dnf_ret_type,
+                                 fallback=term.fallback,
+                                 arg_kinds=term.arg_kinds)
+        return dnf_arrow
+    if isinstance(term, UnionType):
+        return UnionType([convert_to_dnf(item) for item in term.items])
+    if isinstance(term, IntersectionType):
+        union_index = _get_union_term(term.items)
+        if union_index is None:
+            return IntersectionType([convert_to_dnf(item) for item in term.items])
+        else:
+            other_item_index = _get_any_term(term.items, union_index)
+            if other_item_index is None:
+                return term.items[union_index]
+            else:
+                instance_item = term.items[other_item_index]
+                union_type_items = term.items[union_index].items
+                new_intersections = []
+                for item in union_type_items:
+                    new_intersection = IntersectionType([item, instance_item])
+                    new_intersections.append(convert_to_cnf(new_intersection))
+                if len(term.items) > 2:
+                    del term.items[union_index]
+                    del term.items[other_item_index]
+                    return convert_to_dnf(IntersectionType(term.items + [UnionType(new_intersections)]))
+                return UnionType(new_intersections)
 
 def convert_to_anf():
     pass
