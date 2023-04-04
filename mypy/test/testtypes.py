@@ -494,6 +494,9 @@ class TypeOpsSuite(Suite):
             # a ∧ b ∧ (c ∨ b ∨ d) => (a ∧ b ∧ c) ∨ (a ∧ b ∧ d) ∨ (a ∧ b ∧ e)
             (intersect(a, b, union(c, d, e)), union(intersect(a, b, c), intersect(a, b, d), intersect(a, b, e))),
 
+            # (a ∨ (b ∧ (c ∨ d)) => a ∨ (b ∧ c) ∨ (b ∧ d)
+            (union(a, intersect(b, union(c, d))), union(a, intersect(c, b), intersect(d, b))),
+
             # (a -> b) => (a -> b)
             (arrow(a, b), arrow(a, b)),
 
