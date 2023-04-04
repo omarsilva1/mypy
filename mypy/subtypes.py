@@ -285,8 +285,50 @@ def convert_to_dnf(term: Type) -> Type:
                     return convert_to_dnf(IntersectionType(term.items + [UnionType(new_intersections)]))
                 return UnionType(new_intersections)
 
-def convert_to_anf():
-    pass
+#  TODO OMAR: think about rules for callable with multiple arguments and hwo to subtype that
+def convert_to_anf(term: Type) -> Type:
+    if isinstance(term, AnyType) or isinstance(term, Instance):
+        return term
+    if isinstance(term, CallableType):
+        anf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
+        anf_ret_type = convert_to_cnf(term.ret_type)
+        anf_arrow = CallableType(arg_types=anf_arg_types,
+                                 arg_names=term.arg_names,
+                                 ret_type=anf_ret_type,
+                                 fallback=term.fallback,
+                                 arg_kinds=term.arg_kinds)
+        # rewrite term  ∪iσi → ∩j τj rewrites to ∩i(∩j (σi → τj )).
+        intersections = []
+        if isinstance(anf_arg_types[0], UnionType) and isinstance(anf_ret_type, IntersectionType):
+            for union_item in anf_arg_types[0].items:
+                for intersection_item in anf_ret_type.items:
+                    new_arrow = CallableType(arg_types=[union_item],
+                                             arg_names=term.arg_names,
+                                             ret_type=intersection_item,
+                                             fallback=term.fallback,
+                                             arg_kinds=term.arg_kinds)
+                    intersections.append(new_arrow)
+            return IntersectionType(intersections)
+        elif isinstance(anf_arg_types[0], UnionType):
+            for item in anf_arg_types[0].items:
+                new_arrow = CallableType(arg_types=[item],
+                                         arg_names=term.arg_names,
+                                         ret_type=anf_ret_type,
+                                         fallback=term.fallback,
+                                         arg_kinds=term.arg_kinds)
+                intersections.append(new_arrow)
+            return IntersectionType(intersections)
+        elif isinstance(anf_ret_type, IntersectionType):
+            for item in anf_ret_type.items:
+                new_arrow = CallableType(arg_types=anf_arg_types,
+                                         arg_names=term.arg_names,
+                                         ret_type=item,
+                                         fallback=term.fallback,
+                                         arg_kinds=term.arg_kinds)
+                intersections.append(new_arrow)
+            return IntersectionType(intersections)
+        else:
+            return anf_arrow
 
 def is_proper_subtype(
     left: Type,
