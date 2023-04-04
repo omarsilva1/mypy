@@ -216,7 +216,7 @@ def _get_any_term(items, intersection_index):
 
 
 def convert_to_cnf(term: Type) -> Type:
-    if isinstance(term, Instance):
+    if isinstance(term, Instance) or isinstance(term, AnyType):
         return term
     if isinstance(term, CallableType):
         cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
@@ -251,7 +251,7 @@ def convert_to_cnf(term: Type) -> Type:
                 return IntersectionType(new_unions)
 
 def convert_to_dnf(term: Type) -> Type:
-    if isinstance(term, Instance):
+    if isinstance(term, Instance) or isinstance(term, AnyType):
         return term
     if isinstance(term, CallableType):
         dnf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
