@@ -509,6 +509,125 @@ class TypeOpsSuite(Suite):
             converted = convert_to_dnf(test_case)
             assert_equal(converted, expected_result)
 
+    def test_convert_to_anf(self) -> None:
+        fx = self.fx_co
+        def intersect(*a: Type) -> IntersectionType:
+            return IntersectionType(list(a))
+
+        def union(*a: Type) -> UnionType:
+            return UnionType(list(a))
+
+        def arrow(self, *a: Type) -> CallableType:
+            return fx.callable(self, *a)
+
+        # - σ → τ rewrites to DNF(σ) → CNF(τ);
+        # – ∪iσi → ∩j τj rewrites to ∩i(∩j(σi → τj )).
+        omega = fx.anyt
+        a = fx.a
+        b = fx.b
+        c = fx.c
+        d = fx.d
+        e = fx.e
+        f = fx.f
+
+
+        test_cases = [
+            # ω => ω
+            (omega, omega),
+
+            # a => a
+            (a, a),
+
+            # a -> b => a -> b
+            (arrow(a, b), arrow(a, b)),
+
+            # (a -> b) -> c => (a -> b) -> c
+            (arrow(arrow(a, b), c), arrow(arrow(a, b), c)),
+
+            # ω -> (a ∧ b ∧ c) => ω -> a ∧ ω -> b ∧ ω -> c
+            (arrow(omega, intersect(a, b, c)), intersect(
+                arrow(omega, a),
+                arrow(omega, b),
+                arrow(omega, c)
+            )),
+
+            # (a ∨ b) -> c => (a → c) ∧ (b → c))
+            (arrow(union(a, b), c), intersect(
+                arrow(a, c),
+                arrow(b, c)
+            )),
+
+            # (a -> (b ∧ c)) => (a → b) ∧ (a → c))
+            (arrow(a, intersect(b, c)), intersect(
+                arrow(a, b),
+                arrow(a, c)
+            )),
+
+            # (a ∨ (b ∧ (c ∨ d)) -> e => ((a → e) ∧ ((b ∧ c) → e) ∧ ((b ∧ d) → e))
+            (arrow(union(a, intersect(b, union(c, d))), e), intersect(
+                arrow(a, e),
+                arrow(intersect(b, c), e),
+                arrow(intersect(b, d), e)
+            )),
+
+            # (a ∨ b) -> (c ∧ d) => (a -> c) ∧ (a -> d) ∧ (b -> c) ∧ (b -> d)
+            (arrow(union(a, b), intersect(c, d)), intersect(
+                arrow(a, c),
+                arrow(a, d),
+                arrow(b, c),
+                arrow(b, d)
+            )),
+
+            # (a ∨ b ∨ c) ->  (d ∧ e) => (a -> d) ∧ (a -> e) ∧ (b -> d) ∧ (b -> e) ∧ (c -> d) ∧ (c -> e)
+            (arrow(union(a, b, c), intersect(d, e)), intersect(
+                arrow(a, d),
+                arrow(a, e),
+                arrow(b, d),
+                arrow(b, e),
+                arrow(c, d),
+                arrow(c, e)
+            )),
+
+            # (a ∨ b) ->  (c ∧ d ∧ e) => (a -> c) ∧ (a -> d) ∧ (a -> e) ∧ (b -> c) ∧ (b -> d) ∧ (b -> e)
+            (arrow(union(a, b), intersect(c, d, e)), intersect(
+                arrow(a, c),
+                arrow(a, d),
+                arrow(a, e),
+                arrow(b, c),
+                arrow(b, d),
+                arrow(b, e)
+            )),
+
+            # (a ∨ (b ∧ c)) -> (d ∧ (e ∨ f)) => (a -> d) ∧ (a -> (e ∨ f)) ∧ ((b ∧ c) -> d) ∧ ((b ∧ c) -> (e ∨ f))
+            (arrow(union(a, intersect(b, c)), intersect(d, union(e, f))), intersect(
+                arrow(a, d),
+                arrow(a, union(e, f)),
+                arrow(intersect(b, c), d),
+                arrow(intersect(b, c), union(e, f))
+            )),
+
+            # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) => ((a ∧ b) → (d ∨ e)) ∧ ((a ∧ b) → (d ∨ f)) ∧ ((a ∧ c) → (d ∨ e)) ∧ ((a ∧ c) → (d ∨ f))
+            (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), intersect(
+                arrow(intersect(a, b), union(d, e)),
+                arrow(intersect(a, b), union(d, f)),
+                arrow(intersect(a, c), union(d, e)),
+                arrow(intersect(a, c), union(d, f)),
+            )),
+        ]
+        # current_test_case = 4
+        # print("\nTesting case: " + str(current_test_case))
+        # print(test_cases[current_test_case][0])
+        # print(test_cases[current_test_case][1])
+        # converted = convert_to_anf(test_cases[current_test_case][0])
+        # assert_equal(converted, test_cases[current_test_case][1])
+
+        for index, (test_case, expected_result) in enumerate(test_cases):
+            print(f"Index: {index}")
+            print(test_case)
+            print(expected_result)
+            converted = convert_to_anf(test_case)
+            assert_equal(converted, expected_result)
+
     def test_intersection(self) -> None:
         fx = self.fx_co
 
