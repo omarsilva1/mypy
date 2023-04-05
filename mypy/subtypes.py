@@ -329,6 +329,28 @@ def convert_to_anf(term: Type) -> Type:
             return IntersectionType(intersections)
         else:
             return anf_arrow
+    elif isinstance(term, UnionType):
+        return UnionType([convert_to_anf(item) for item in term.items])
+    elif isinstance(term, IntersectionType):
+        return IntersectionType([convert_to_anf(item) for item in term.items])
+    else:
+        return term
+
+def canf(term: Type) -> Type:
+    return convert_to_cnf(convert_to_anf(simplify_omega(term)))
+
+def danf(term: Type) -> Type:
+    return convert_to_dnf(convert_to_anf(simplify_omega(term)))
+
+
+def _is_BCDd95_subtype(left: Type, right: Type) -> bool:
+    if isinstance(right, AnyType):
+        return True
+    return True
+
+
+def is_BCDd95_subtype(left: Type, right: Type) -> bool:
+    return _is_BCDd95_subtype(danf(left), canf(right))
 
 def is_proper_subtype(
     left: Type,
