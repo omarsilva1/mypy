@@ -346,7 +346,25 @@ def danf(term: Type) -> Type:
 def _is_BCDd95_subtype(left: Type, right: Type) -> bool:
     if isinstance(right, AnyType):
         return True
-    return True
+    if left == right:
+       return True
+    if isinstance(left, Instance) and isinstance(right, Instance):
+        return is_subtype(left, right)
+    if isinstance(left, UnionType):
+        return all(_is_BCDd95_subtype(item, right) for item in left.items)
+    if isinstance(right, IntersectionType):
+        return all(_is_BCDd95_subtype(left, item) for item in right.items)
+    if isinstance(left, IntersectionType):
+        return any(_is_BCDd95_subtype(item, right) for item in left.items)
+    if isinstance(right, UnionType):
+        return any(_is_BCDd95_subtype(left, item) for item in right.items)
+    if isinstance(left, CallableType) and isinstance(right, CallableType):
+        if len(right.arg_types) != len(left.arg_types):
+            return False
+        result = all(_is_BCDd95_subtype(right.arg_types[i], left.arg_types[i]) for i, _ in enumerate(right.arg_types))
+        result = result and _is_BCDd95_subtype(left.ret_type, right.ret_type)
+        return result
+    return False
 
 
 def is_BCDd95_subtype(left: Type, right: Type) -> bool:
