@@ -88,6 +88,24 @@ class TypeFixture:
         self.car_i = self.make_type_info("Car", mro=[self.oi, self.vehicle_i], bases=[self.vehicle])
         self.car = Instance(self.car_i, [])
 
+        self.a2_i = self.make_type_info("A2", mro=[self.oi])  # class A2
+        self.a1_i = self.make_type_info("A1", mro=[self.oi, self.a2_i])  # class A1 inherits from A2
+        self.b2_i = self.make_type_info("B2", mro=[self.oi])  # class B2
+        self.b1_i = self.make_type_info("B1", mro=[self.oi, self.b2_i])  # class B1 inherits from B2
+
+        self.a2 = Instance(self.a2_i, [])  # instance of A2
+        self.a1 = Instance(self.a1_i, [])  # instance of A1
+        self.b2 = Instance(self.b2_i, [])  # instance of B2
+        self.b1 = Instance(self.b1_i, [])  # instance of B1
+
+        self.f1_i = self.make_type_info("F1", mro=[self.oi])  # class F1
+        self.e1_i = self.make_type_info("E1", mro=[self.oi, self.f1_i])  # class E1 inherits from f1
+        self.d1_i = self.make_type_info("D1", mro=[self.oi, self.e1_i, self.f1_i])  # class D1 inherits from e1
+
+        self.f1 = Instance(self.f1_i, [])  # instance of F1
+        self.e1 = Instance(self.e1_i, [])  # instance of E1
+        self.d1 = Instance(self.d1_i, [])  # instance of D1
+
         # Abstract class TypeInfos
 
         # class F
