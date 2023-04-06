@@ -631,8 +631,10 @@ class TypeOpsSuite(Suite):
             print(expected_result)
             converted = convert_to_anf(test_case)
             assert_equal(converted, expected_result)
+
     def test_is_BCDd95_subtype(self) -> None:
         fx = self.fx_co
+
         def intersect(*a: Type) -> IntersectionType:
             return IntersectionType(list(a))
 
