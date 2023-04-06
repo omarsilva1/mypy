@@ -10,7 +10,7 @@ from mypy.meet import meet_types, narrow_declared_type
 from mypy.nodes import ARG_OPT, ARG_POS, ARG_STAR, ARG_STAR2, CONTRAVARIANT, COVARIANT, INVARIANT
 from mypy.state import state
 from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype, simplify_omega, \
-    convert_to_cnf, convert_to_dnf, convert_to_anf
+    convert_to_cnf, convert_to_dnf, convert_to_anf, is_BCDd95_subtype
 from mypy.test.helpers import Suite, assert_equal, assert_type, skip
 from mypy.test.typefixture import InterfaceTypeFixture, TypeFixture
 from mypy.typeops import false_only, make_simplified_union, true_only
@@ -609,7 +609,8 @@ class TypeOpsSuite(Suite):
                 arrow(intersect(b, c), union(e, f))
             )),
 
-            # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) => ((a ∧ b) → (d ∨ e)) ∧ ((a ∧ b) → (d ∨ f)) ∧ ((a ∧ c) → (d ∨ e)) ∧ ((a ∧ c) → (d ∨ f))
+            # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) =>
+            # ((a ∧ b) → (d ∨ e)) ∧ ((a ∧ b) → (d ∨ f)) ∧ ((a ∧ c) → (d ∨ e)) ∧ ((a ∧ c) → (d ∨ f))
             (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), intersect(
                 arrow(intersect(a, b), union(d, e)),
                 arrow(intersect(a, b), union(d, f)),
@@ -630,6 +631,108 @@ class TypeOpsSuite(Suite):
             print(expected_result)
             converted = convert_to_anf(test_case)
             assert_equal(converted, expected_result)
+    def test_is_BCDd95_subtype(self) -> None:
+        fx = self.fx_co
+        def intersect(*a: Type) -> IntersectionType:
+            return IntersectionType(list(a))
+
+        def union(*a: Type) -> UnionType:
+            return UnionType(list(a))
+
+        def arrow(self, *a: Type) -> CallableType:
+            return fx.callable(self, *a)
+
+        # - σ → τ rewrites to DNF(σ) → CNF(τ);
+        # – ∪iσi → ∩j τj rewrites to ∩i(∩j(σi → τj )).
+        omega = fx.anyt
+        a = fx.a
+        b = fx.b
+        c = fx.c
+        d = fx.d
+        e = fx.e
+        f = fx.f
+
+        a1 = fx.a1  # class A1 inherits from A2
+        a2 = fx.a2
+        b1 = fx.b1  # class B1 inherits from B2
+        b2 = fx.b2
+
+        d1 = fx.d1  # d1 inherits from e1
+        e1 = fx.e1  # e1 inherits from f1
+        f1 = fx.f1
+
+        test_cases = [
+            # Testing the BCDd95 subtyping axioms
+            # a <= a ∧ a
+            (a, intersect(a, a)),
+
+            # a ∨ a <= a
+            (union(a, a), a),
+
+            # a ∧ b <= a
+            (intersect(a, b), a),
+
+            # a ∧ b <= b
+            (intersect(a, b), b),
+
+            # a <= a ∨ b
+            (a, union(a, b)),
+
+            # b <= a ∨ b
+            (b, union(a, b)),
+
+            # a <= omega
+            (a, omega),
+
+            # a <= a
+            (a, a),
+
+            # a1 <= a2, b1 <= b2 => a1 ∧ b1 <=  a2 ∧ b2
+            (intersect(a1, b1), intersect(a2, b2)),
+
+            # a1 <= a2, b1 <= b2 => a1 ∨ b1 <=  a2 ∨ b2
+            (union(a1, b1), union(a2, b2)),
+
+            # d1 <= e1, e1 <= f1 => d1 <= f1 TODO OMAR: this doesnt work with AnyType
+            (d1, f1),
+
+            # (a ∧ (b ∨ c)) <= ((a ∧ b) ∨ (a ∧ c))
+            (intersect(a, union(b, c)), union(intersect(a, b), intersect(a, c))),
+
+            # a -> b ∧ a -> c <= a -> (b ∧ c)
+            (intersect(arrow(a, b), arrow(a, c)),  arrow(a, intersect(b, c))),
+
+            # a -> c ∧ b -> c <=  (a ∨ b) -> c
+            (intersect(arrow(a, c), arrow(b, c)), arrow(union(a, b), c)),
+
+            # ω <= ω -> ω
+            (omega, arrow(omega, omega)),
+
+            # a1 <= a2, b1 <= b2 => a2 -> b1 <= a1 -> b2
+            (arrow(a2, b1), arrow(a1, b2)),
+
+            # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) <= omega
+            # (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), omega),
+            # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) <=
+            # ((a ∧ b) → (d ∨ e)) ∧ ((a ∧ b) → (d ∨ f)) ∧ ((a ∧ c) → (d ∨ e)) ∧ ((a ∧ c) → (d ∨ f))
+            # (a, intersect(a, a)),
+            # (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), intersect(
+            #     arrow(intersect(a, b), union(d, e)),
+            #     arrow(intersect(a, b), union(d, f)),
+            #     arrow(intersect(a, c), union(d, e)),
+            #     arrow(intersect(a, c), union(d, f)),
+            # ))
+        ]
+        # current_test_case = 15
+        # print("\nTesting case: " + str(current_test_case))
+        # print(test_cases[current_test_case][0])
+        # print(test_cases[current_test_case][1])
+        # assert is_BCDd95_subtype(test_cases[current_test_case][0], test_cases[current_test_case][1])
+
+        for index, (left, right) in enumerate(test_cases):
+            print(f"Index: {index}")
+            assert is_BCDd95_subtype(left, right)
+
 
     def test_intersection(self) -> None:
         fx = self.fx_co
