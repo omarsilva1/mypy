@@ -714,16 +714,32 @@ class TypeOpsSuite(Suite):
             (arrow(a2, b1), arrow(a1, b2)),
 
             # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) <= omega
-            # (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), omega),
+            (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), omega),
             # (a ∧ (b ∨ c)) → (d ∨ (e ∧ f)) <=
             # ((a ∧ b) → (d ∨ e)) ∧ ((a ∧ b) → (d ∨ f)) ∧ ((a ∧ c) → (d ∨ e)) ∧ ((a ∧ c) → (d ∨ f))
-            # (a, intersect(a, a)),
-            # (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), intersect(
-            #     arrow(intersect(a, b), union(d, e)),
-            #     arrow(intersect(a, b), union(d, f)),
-            #     arrow(intersect(a, c), union(d, e)),
-            #     arrow(intersect(a, c), union(d, f)),
-            # ))
+            (a, intersect(a, a)),
+            (arrow(intersect(a, union(b, c)), union(d, intersect(e, f))), intersect(
+                arrow(intersect(a, b), union(d, e)),
+                arrow(intersect(a, b), union(d, f)),
+                arrow(intersect(a, c), union(d, e)),
+                arrow(intersect(a, c), union(d, f)),
+            )),
+
+            # (a ∨ (b ∧ c)) -> (d ∧ (e ∨ f)) => (a -> d) ∧ (a -> (e ∨ f)) ∧ ((b ∧ c) -> d) ∧ ((b ∧ c) -> (e ∨ f))
+            (arrow(union(a, intersect(b, c)), intersect(d, union(e, f))), intersect(
+                arrow(a, d),
+                arrow(a, union(e, f)),
+                arrow(intersect(b, c), d),
+                arrow(intersect(b, c), union(e, f))
+            )),
+
+            # (a -> d) ∧ (a -> (e ∨ f)) ∧ ((b ∧ c) -> d) ∧ ((b ∧ c) -> (e ∨ f)) => (a ∨ (b ∧ c)) -> (d ∧ (e ∨ f))
+            (intersect(
+                arrow(a, d),
+                arrow(a, union(e, f)),
+                arrow(intersect(b, c), d),
+                arrow(intersect(b, c), union(e, f))
+            ), arrow(union(a, intersect(b, c)), intersect(d, union(e, f)))),
         ]
         # current_test_case = 15
         # print("\nTesting case: " + str(current_test_case))
