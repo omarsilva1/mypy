@@ -86,6 +86,8 @@ def is_recursive_pair(s: Type, t: Type) -> bool:
         )
     return False
 
+def is_recursive(s):
+    return isinstance(s, TypeAliasType) and s.is_recursive
 
 def tuple_fallback(typ: TupleType) -> Instance:
     """Return fallback type for a tuple."""
@@ -1051,3 +1053,5 @@ def fixup_partial_type(typ: Type) -> Type:
         return UnionType.make_union([AnyType(TypeOfAny.unannotated), NoneType()])
     else:
         return Instance(typ.type, [AnyType(TypeOfAny.unannotated)] * len(typ.type.type_vars))
+
+
