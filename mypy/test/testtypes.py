@@ -535,6 +535,13 @@ class TypeOpsSuite(Suite):
 
 
         test_cases = [
+
+            # TODO OMAR: new case [(a ∨ b), c, d] -> e => ([a, c, d] -> e) ∧ ([b, c, d] -> e)
+            (arrow(union(a, b), c, d, e), intersect(
+                arrow(a, c, d, e),
+                arrow(b, c, d, e)
+            )),
+
             # ω => ω
             (omega, omega),
 
@@ -618,7 +625,7 @@ class TypeOpsSuite(Suite):
                 arrow(intersect(a, c), union(d, f)),
             )),
         ]
-        # current_test_case = 4
+        # current_test_case = 0
         # print("\nTesting case: " + str(current_test_case))
         # print(test_cases[current_test_case][0])
         # print(test_cases[current_test_case][1])
