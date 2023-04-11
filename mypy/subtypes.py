@@ -61,6 +61,7 @@ from mypy.types import (
     _flattened,
     get_proper_type,
     is_named_instance,
+    has_recursive_types,
 )
 from mypy.typestate import SubtypeKind, type_state
 from mypy.typevars import fill_typevars_with_any
@@ -175,7 +176,9 @@ def is_subtype(
         # TODO OMAR: add intersection check for recursive intersection types
         with pop_on_exit(type_state.get_assumptions(is_proper=False), left, right):
             return _is_subtype(left, right, subtype_context, proper_subtype=False)
-    return _is_subtype(left, right, subtype_context, proper_subtype=False)
+    if has_recursive_types(left) or has_recursive_types(right):
+        return _is_subtype(left, right, subtype_context, proper_subtype=False)
+    return is_BCDd95_subtype(left, right, subtype_context, proper_subtype=False)
 
 def simplify_omega(term: Type) -> Type:
     if isinstance(term, IntersectionType):
@@ -216,7 +219,9 @@ def _get_any_term(items, intersection_index):
 
 
 def convert_to_cnf(term: Type) -> Type:
-    if isinstance(term, Instance) or isinstance(term, AnyType):
+    if isinstance(term, Instance) or isinstance(term, AnyType) or \
+            isinstance(term, TypeType) or isinstance(term, LiteralType) or \
+            isinstance(term, UninhabitedType):
         return term
     if isinstance(term, CallableType):
         cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
@@ -249,9 +254,13 @@ def convert_to_cnf(term: Type) -> Type:
                     del term.items[other_item_index]
                     return convert_to_cnf(UnionType(term.items + [IntersectionType(new_unions)]))
                 return IntersectionType(new_unions)
+    else:
+        return term
 
 def convert_to_dnf(term: Type) -> Type:
-    if isinstance(term, Instance) or isinstance(term, AnyType):
+    if isinstance(term, Instance) or isinstance(term, AnyType) or \
+            isinstance(term, TypeType) or isinstance(term, LiteralType) or \
+            isinstance(term, UninhabitedType):
         return term
     if isinstance(term, CallableType):
         dnf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
@@ -284,11 +293,11 @@ def convert_to_dnf(term: Type) -> Type:
                     del term.items[other_item_index]
                     return convert_to_dnf(IntersectionType(term.items + [UnionType(new_intersections)]))
                 return UnionType(new_intersections)
+    else:
+        return term
 
 #  TODO OMAR: think about rules for callable with multiple arguments and hwo to subtype that
 def convert_to_anf(term: Type) -> Type:
-    if isinstance(term, AnyType) or isinstance(term, Instance):
-        return term
     if isinstance(term, CallableType):
         anf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
         anf_ret_type = convert_to_cnf(term.ret_type)
@@ -299,8 +308,11 @@ def convert_to_anf(term: Type) -> Type:
                                  arg_kinds=term.arg_kinds)
         # rewrite term  ∪iσi → ∩j τj rewrites to ∩i(∩j (σi → τj )).
         intersections = []
-        if isinstance(anf_arg_types[0], UnionType) and isinstance(anf_ret_type, IntersectionType):
-            for union_item in anf_arg_types[0].items:
+        if len(anf_arg_types) == 0:
+            return anf_arrow
+        union_term_index = _get_union_term(anf_arg_types)
+        if union_term_index is not None and isinstance(anf_ret_type, IntersectionType):
+            for union_item in anf_arg_types[union_term_index].items:
                 for intersection_item in anf_ret_type.items:
                     new_arrow = CallableType(arg_types=[union_item],
                                              arg_names=term.arg_names,
@@ -309,9 +321,12 @@ def convert_to_anf(term: Type) -> Type:
                                              arg_kinds=term.arg_kinds)
                     intersections.append(new_arrow)
             return IntersectionType(intersections)
-        elif isinstance(anf_arg_types[0], UnionType):
-            for item in anf_arg_types[0].items:
-                new_arrow = CallableType(arg_types=[item],
+        elif union_term_index is not None:
+            for item in anf_arg_types[union_term_index].items:
+                new_arg_types=anf_arg_types[:union_term_index] + [item] + anf_arg_types[union_term_index+1:]
+                # new_arg_names=term.arg_names[:union_term_index] + term.arg_names[union_term_index+1:]
+                # new_arg_kinds=
+                new_arrow = CallableType(arg_types=new_arg_types,
                                          arg_names=term.arg_names,
                                          ret_type=anf_ret_type,
                                          fallback=term.fallback,
@@ -344,27 +359,28 @@ def danf(term: Type) -> Type:
 
 
 def _is_BCDd95_subtype(left: Type, right: Type, subtype_context, proper_subtype) -> bool:
-    if isinstance(right, AnyType):
+    if isinstance(right, AnyType) or isinstance(left, AnyType):
         return True
-    if left == right:
+    elif left == right:
        return True
-    if isinstance(left, Instance) and isinstance(right, Instance):
+    elif isinstance(left, Instance) and isinstance(right, Instance):
         return _is_subtype(left, right, subtype_context, proper_subtype)
-    if isinstance(left, UnionType):
+    elif isinstance(left, UnionType):
         return all(_is_BCDd95_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
-    if isinstance(right, IntersectionType):
+    elif isinstance(right, IntersectionType):
         return all(_is_BCDd95_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
-    if isinstance(left, IntersectionType):
+    elif isinstance(left, IntersectionType):
         return any(_is_BCDd95_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
-    if isinstance(right, UnionType):
+    elif isinstance(right, UnionType):
         return any(_is_BCDd95_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
-    if isinstance(left, CallableType) and isinstance(right, CallableType):
+    elif isinstance(left, CallableType) and isinstance(right, CallableType):
         if len(right.arg_types) != len(left.arg_types):
             return False
-        result = all(_is_BCDd95_subtype(right.arg_types[i], left.arg_types[i]) for i, _ in enumerate(right.arg_types))
-        result = result and _is_BCDd95_subtype(left.ret_type, right.ret_type)
+        result = all(_is_BCDd95_subtype(right.arg_types[i], left.arg_types[i], subtype_context, proper_subtype) for i, _ in enumerate(right.arg_types))
+        result = result and _is_BCDd95_subtype(left.ret_type, right.ret_type, subtype_context, proper_subtype)
         return result
-    return False
+    else:
+        return _is_subtype(left, right, subtype_context, proper_subtype)
 
 
 def is_BCDd95_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=False) -> bool:
