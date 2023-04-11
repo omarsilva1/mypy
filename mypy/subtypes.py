@@ -172,7 +172,7 @@ def is_subtype(
         #     B = Union[int, Tuple[B, ...]]
         # When checking if A <: B we push pair (A, B) onto 'assuming' stack, then when after few
         # steps we come back to initial call is_subtype(A, B) and immediately return True.
-        # TODO OMAR: add intersection check for recursive
+        # TODO OMAR: add intersection check for recursive intersection types
         with pop_on_exit(type_state.get_assumptions(is_proper=False), left, right):
             return _is_subtype(left, right, subtype_context, proper_subtype=False)
     return _is_subtype(left, right, subtype_context, proper_subtype=False)
@@ -343,21 +343,21 @@ def danf(term: Type) -> Type:
     return convert_to_dnf(convert_to_anf(simplify_omega(term)))
 
 
-def _is_BCDd95_subtype(left: Type, right: Type) -> bool:
+def _is_BCDd95_subtype(left: Type, right: Type, subtype_context, proper_subtype) -> bool:
     if isinstance(right, AnyType):
         return True
     if left == right:
        return True
     if isinstance(left, Instance) and isinstance(right, Instance):
-        return is_subtype(left, right)
+        return _is_subtype(left, right, subtype_context, proper_subtype)
     if isinstance(left, UnionType):
-        return all(_is_BCDd95_subtype(item, right) for item in left.items)
+        return all(_is_BCDd95_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
     if isinstance(right, IntersectionType):
-        return all(_is_BCDd95_subtype(left, item) for item in right.items)
+        return all(_is_BCDd95_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
     if isinstance(left, IntersectionType):
-        return any(_is_BCDd95_subtype(item, right) for item in left.items)
+        return any(_is_BCDd95_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
     if isinstance(right, UnionType):
-        return any(_is_BCDd95_subtype(left, item) for item in right.items)
+        return any(_is_BCDd95_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
     if isinstance(left, CallableType) and isinstance(right, CallableType):
         if len(right.arg_types) != len(left.arg_types):
             return False
@@ -367,8 +367,17 @@ def _is_BCDd95_subtype(left: Type, right: Type) -> bool:
     return False
 
 
-def is_BCDd95_subtype(left: Type, right: Type) -> bool:
-    return _is_BCDd95_subtype(danf(left), canf(right))
+def is_BCDd95_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=False) -> bool:
+    if subtype_context is None:
+        subtype_context = SubtypeContext(
+            ignore_type_params=False,
+            ignore_pos_arg_names=False,
+            ignore_declared_variance=False,
+            ignore_promotions=False,
+            ignore_uninhabited=False,
+            options=None,
+        )
+    return _is_BCDd95_subtype(danf(left), canf(right), subtype_context, proper_subtype)
 
 def is_proper_subtype(
     left: Type,
