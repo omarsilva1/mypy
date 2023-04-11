@@ -823,9 +823,6 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
         # TODO: Move this message building logic to messages.py.
         notes: list[str] = []
         if isinstance(sym.node, Var):
-            print("returning is not valid as a type")
-            print(sym.node)
-            print(Var)
             notes.append(
                 "See https://mypy.readthedocs.io/en/"
                 "stable/common_issues.html#variables-vs-type-aliases"
