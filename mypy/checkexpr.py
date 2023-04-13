@@ -1298,6 +1298,8 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             return self.check_any_type_call(args, callee)
         elif isinstance(callee, UnionType):
             return self.check_union_call(callee, args, arg_kinds, arg_names, context)
+        elif isinstance(callee, IntersectionType):
+            return self.check_intersection_call(callee, args, arg_kinds, arg_names, context)
         elif isinstance(callee, Instance):
             call_function = analyze_member_access(
                 "__call__",
@@ -2754,6 +2756,22 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             ]
 
         return (make_simplified_union([res[0] for res in results]), callee)
+
+    def check_intersection_call(
+        self,
+        callee: IntersectionType,
+        args: list[Expression],
+        arg_kinds: list[ArgKind],
+        arg_names: Sequence[str | None] | None,
+        context: Context,
+    ) -> tuple[Type, Type]:
+        with self.msg.disable_type_names():
+            results = [
+                self.check_call(subtype, args, arg_kinds, context, arg_names)
+                for subtype in callee.relevant_items()
+            ]
+
+        return IntersectionType(results[0]), callee
 
     def visit_member_expr(self, e: MemberExpr, is_lvalue: bool = False) -> Type:
         """Visit member expression (of form e.id)."""
