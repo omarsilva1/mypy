@@ -384,6 +384,8 @@ def _is_BCDd95_subtype(left: Type, right: Type, subtype_context, proper_subtype)
 
 
 def is_BCDd95_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=False) -> bool:
+    left = get_proper_type(left)
+    right = get_proper_type(right)
     if subtype_context is None:
         subtype_context = SubtypeContext(
             ignore_type_params=False,
