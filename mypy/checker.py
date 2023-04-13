@@ -19,6 +19,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    Intersection,
     cast,
     overload,
 )
@@ -3268,6 +3269,7 @@ class TypeChecker(NodeVisitor[None], CheckerPluginInterface):
         if isinstance(typ, FunctionLike):
             return True  # Can be a property, or some other magic
         if isinstance(typ, UnionType):
+            # TODO OMAR: maybe add case here for intersection types?
             return all(self.is_assignable_slot(lvalue, u) for u in typ.items)
         return False
 
