@@ -151,6 +151,7 @@ from mypy.types import (
     TypeVarType,
     UninhabitedType,
     UnionType,
+    IntersectionType,
     UnpackType,
     flatten_nested_unions,
     get_proper_type,
@@ -555,6 +556,8 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         ret_type = get_proper_type(ret_type)
         if isinstance(ret_type, UnionType):
             ret_type = make_simplified_union(ret_type.items)
+        if isinstance(ret_type, IntersectionType):
+            print("NOT IMPLEMENTED")
         if isinstance(ret_type, UninhabitedType) and not ret_type.ambiguous:
             self.chk.binder.unreachable()
         # Warn on calls to functions that always return None. The check
