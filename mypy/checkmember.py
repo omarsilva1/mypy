@@ -68,6 +68,7 @@ from mypy.types import (
     TypeVarTupleType,
     TypeVarType,
     UnionType,
+    IntersectionType,
     get_proper_type,
 )
 from mypy.typetraverser import TypeTraverserVisitor
@@ -223,6 +224,8 @@ def _analyze_member_access(
         return AnyType(TypeOfAny.from_another_any, source_any=typ)
     elif isinstance(typ, UnionType):
         return analyze_union_member_access(name, typ, mx)
+    elif isinstance(typ, IntersectionType):
+        return analyze_intersection_member_access(name, typ, mx)
     elif isinstance(typ, FunctionLike) and typ.is_type_obj():
         return analyze_type_callable_member_access(name, typ, mx)
     elif isinstance(typ, TypeType):
@@ -450,6 +453,23 @@ def analyze_union_member_access(name: str, typ: UnionType, mx: MemberContext) ->
             item_mx = mx.copy_modified(self_type=subtype)
             results.append(_analyze_member_access(name, subtype, item_mx))
     return make_simplified_union(results)
+
+def analyze_intersection_member_access(name: str, typ: IntersectionType, mx: MemberContext) -> Type:
+    print(name)
+    print(typ)
+    # Step 1: ignore this method, just return something that works (working)
+    # Step 2: implement this method, so that we check that the attribute is actually in the intersection
+    # Option : change analyze_member_var_access to have a parameter is_intersection.
+    #   If it is true we disable error giving
+    with mx.msg.disable_type_names():
+        results = []
+        for subtype in typ.relevant_items():
+            print(subtype)
+            # Self types should be bound to every individual item of a union.
+            item_mx = mx.copy_modified(self_type=subtype)
+            # results.append(_analyze_member_access(name, subtype, item_mx))
+    # accept everything
+    return IntersectionType([AnyType(type_of_any=5)])
 
 
 def analyze_none_member_access(name: str, typ: NoneType, mx: MemberContext) -> Type:
