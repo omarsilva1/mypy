@@ -455,19 +455,26 @@ def analyze_union_member_access(name: str, typ: UnionType, mx: MemberContext) ->
     return make_simplified_union(results)
 
 def analyze_intersection_member_access(name: str, typ: IntersectionType, mx: MemberContext) -> Type:
+    print("analyze_intersection_member_access")
     print(name)
     print(typ)
     # Step 1: ignore this method, just return something that works (working)
     # Step 2: implement this method, so that we check that the attribute is actually in the intersection
     # Option : change analyze_member_var_access to have a parameter is_intersection.
     #   If it is true we disable error giving
+    has_member = False
     with mx.msg.disable_type_names():
         results = []
         for subtype in typ.relevant_items():
             print(subtype)
+            for attr in subtype.type.abstract_attributes:
+                if attr[0] == name:
+                    has_member = True
             # Self types should be bound to every individual item of a union.
-            item_mx = mx.copy_modified(self_type=subtype)
+            # item_mx = mx.copy_modified(self_type=subtype)
             # results.append(_analyze_member_access(name, subtype, item_mx))
+    if not has_member:
+        report_missing_attribute(mx.original_type, typ, name, mx)
     # accept everything
     return IntersectionType([AnyType(type_of_any=5)])
 
