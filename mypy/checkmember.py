@@ -455,11 +455,9 @@ def analyze_union_member_access(name: str, typ: UnionType, mx: MemberContext) ->
     return make_simplified_union(results)
 
 def analyze_intersection_member_access(name: str, typ: IntersectionType, mx: MemberContext) -> Type:
-    print("analyze_intersection_member_access")
-    print(name)
-    print(typ)
     # Step 1: ignore this method, just return something that works (working)
-    # Step 2: implement this method, so that we check that the attribute is actually in the intersection
+    # Step 2: implement this method, so that we check that the attribute is actually in the intersection (working)
+    # Step 3: find out what should be actually the return value of this function
     # Option : change analyze_member_var_access to have a parameter is_intersection.
     #   If it is true we disable error giving
     has_member = False
@@ -467,6 +465,7 @@ def analyze_intersection_member_access(name: str, typ: IntersectionType, mx: Mem
         results = []
         for subtype in typ.relevant_items():
             print(subtype)
+            # TODO OMAR Use info = typ.type -> info.get_method(name) instead of iterating
             for attr in subtype.type.abstract_attributes:
                 if attr[0] == name:
                     has_member = True

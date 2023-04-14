@@ -1190,7 +1190,6 @@ class SubtypeVisitor(TypeVisitor[bool]):
             return True
         elif isinstance(self.right, CallableType):
             # TODO OMAR: only implemented for the case that sigma is one type only, could be extended recursively
-            # TODO OMAR: add fast and verified BCD
             # check case where (σ -> τ1) & (σ -> τ2) <= σ -> (τ1 & τ2)
             # check left hand sigma is equal
             if len(left.items) == 2:
