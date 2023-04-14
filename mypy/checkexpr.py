@@ -557,7 +557,9 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         if isinstance(ret_type, UnionType):
             ret_type = make_simplified_union(ret_type.items)
         if isinstance(ret_type, IntersectionType):
-            print("NOT IMPLEMENTED")
+            pass
+            # NOT IMPLEMENTED ?
+            #    TODO OMAR: check if ret type has to be changed here.
         if isinstance(ret_type, UninhabitedType) and not ret_type.ambiguous:
             self.chk.binder.unreachable()
         # Warn on calls to functions that always return None. The check
