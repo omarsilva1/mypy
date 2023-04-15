@@ -1897,18 +1897,26 @@ class TypeConverter:
         return UnboundType(n.id, line=self.line, column=self.convert_column(n.col_offset))
 
     def visit_BinOp(self, n: ast3.BinOp) -> Type:
-        if not isinstance(n.op, ast3.BitOr):
-            return self.invalid_type(n)
-
-        left = self.visit(n.left)
-        right = self.visit(n.right)
-        return UnionType(
-            [left, right],
-            line=self.line,
-            column=self.convert_column(n.col_offset),
-            is_evaluated=self.is_evaluated,
-            uses_pep604_syntax=True,
-        )
+        if isinstance(n.op, ast3.BitOr):
+            left = self.visit(n.left)
+            right = self.visit(n.right)
+            return UnionType(
+                [left, right],
+                line=self.line,
+                column=self.convert_column(n.col_offset),
+                is_evaluated=self.is_evaluated,
+                uses_pep604_syntax=True,
+            )
+        elif isinstance(n.op, ast3.BitAnd):
+            left = self.visit(n.left)
+            right = self.visit(n.right)
+            return IntersectionType(
+                [left, right],
+                line=self.line,
+                column=self.convert_column(n.col_offset),
+                is_evaluated=self.is_evaluated,
+            )
+        return self.invalid_type(n)
 
     def visit_NameConstant(self, n: NameConstant) -> Type:
         if isinstance(n.value, bool):
