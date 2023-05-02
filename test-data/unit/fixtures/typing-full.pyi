@@ -15,6 +15,7 @@ def assert_type(o, t): ...
 overload = 0
 Any = 0
 Union = 0
+Intersection = 0
 Optional = 0
 TypeVar = 0
 Generic = 0

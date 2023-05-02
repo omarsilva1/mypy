@@ -1,0 +1,11 @@
+-- Type checking of intersection types
+
+[case testIntersection1]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+
+def test3(x: Intersection[Callable[[S], T], Callable[[R], T]], y: Union[S, R]) -> T:
+    return x(y)
+[builtins fixtures/isinstance.pyi]

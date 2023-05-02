@@ -1,4 +1,4 @@
-from typing import Tuple, TypeVar, Generic, Union, cast, Any, Type
+from typing import Tuple, TypeVar, Generic, Union, cast, Any, Type, Intersection
 
 T = TypeVar('T')
 
