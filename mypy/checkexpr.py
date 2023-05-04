@@ -2768,12 +2768,85 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         context: Context,
     ) -> tuple[Type, Type]:
         with self.msg.disable_type_names():
-            results = [
-                self.check_call(subtype, args, arg_kinds, context, arg_names)
-                for subtype in callee.relevant_items()
-            ]
+            results = []
+            callable_types = []
+            if self.has_callable(callee):
+                for item in callee.items:
+                    if isinstance(item, CallableType):
+                        callable_types.append(item)
+                # TODO OMAR:check if the return types are the same, for now we are assuming they always are
 
+                # union_items = []
+                # for item in callable_types:
+                #     union_items.extend(item.arg_types)
+                # union = UnionType(union_items)
+
+                # make unions for all callables that have the same return value
+                union_dictionary = {}
+                for i in range(len(callable_types)):
+                    for j in range(len(callable_types)):
+                        if callable_types[i].ret_type == callable_types[j].ret_type:
+                            ret_type = callable_types[i].ret_type
+                            if ret_type not in union_dictionary:
+                                union_dictionary[ret_type] = set()
+                            union_dictionary[ret_type].update(callable_types[i].arg_types)
+                            union_dictionary[ret_type].update(callable_types[j].arg_types)
+
+                # iterate through dictiionary keys
+                    # create a callable and call check_call
+                results = []
+                # Iterate through dictionary keys
+                for ret_type, union_items in union_dictionary.items():
+                    if len(union_items) == 1:
+                        callable_args = list(union_items)
+                    else:
+                        callable_args = [UnionType(list(union_items))]
+
+                    # Merge the arg_kinds from callable_types
+                    item_arg_kinds = []
+                    # for callable_type in callable_types:
+                    #     if callable_type.ret_type == ret_type:
+                    #         item_arg_kinds.extend(callable_type.arg_kinds)
+
+                    # Create a callable and call check_call
+                    new_callable = CallableType(
+                        arg_types=callable_args,
+                        arg_kinds=[ArgKind.ARG_POS],
+                        arg_names=[None],
+                        ret_type=ret_type,
+                        fallback=callable_types[0].fallback,
+                    )
+                    results.append(self.check_call(new_callable, args, arg_kinds, context, arg_names))
+                return IntersectionType(results[0]), callee
+            else:
+                results = [
+                    self.check_call(subtype, args, arg_kinds, context, arg_names)
+                    for subtype in callee.relevant_items()
+                ]
+            self.check_call(callee, args, arg_kinds, context, arg_names)
+            # for subtype in callee.relevant_items():
+            #     print(subtype)
+            #     results.append(self.check_call(subtype, args, arg_kinds, context, arg_names))
+            print("callee:")
+            print(callee)
+            print("args[0].node.type")
+            print(args[0].node.type)
+
+            # results.append(self.check_call(callee.relevant_items()[0], args, arg_kinds, context, arg_names))
+            # results = [
+            #     self.check_call(subtype, args, arg_kinds, context, arg_names)
+            #     for subtype in callee.relevant_items()
+            # ]
+            # results = [self.check_call(callee, args, arg_kinds, context, arg_names)]
+        # return AnyType(TypeOfAny.special_form), AnyType(TypeOfAny.special_form)
         return IntersectionType(results[0]), callee
+
+    def has_callable(self, typ: Type) -> bool:
+        if isinstance(typ, IntersectionType):
+            for item in typ.items:
+                if isinstance(item, CallableType):
+                    return True
+        return False
 
     def visit_member_expr(self, e: MemberExpr, is_lvalue: bool = False) -> Type:
         """Visit member expression (of form e.id)."""

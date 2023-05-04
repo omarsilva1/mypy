@@ -45,3 +45,40 @@ def test3(x: Intersection[Callable[[S], T], Callable[[R], T]], y: Union[S, R]) -
 [out]
 main:7: error: A function returning TypeVar should receive at least one argument containing the same TypeVar
 main:8: error: Incompatible return value type (got "T", expected "Q")
+
+[case testIntersection5]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+
+def test3(x: Intersection[Callable[[S], T], Callable[[R], T]], y: Union[S, R]) -> T:
+    return x(y)
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersection6]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+
+def test3(x: Intersection[Callable[[S], R], Callable[[R], T]], y: Union[S, R]) -> Union[T, R]:
+    return x(y)
+[builtins fixtures/isinstance.pyi]
+[out]
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
+
+[case testIntersection6]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+
+def test3(x: Intersection[Callable[[S], R], Callable[[R], T]], y: Union[S, R]) -> Union[T, R]:
+    return x(y)
+[builtins fixtures/isinstance.pyi]
+[out]
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
+
