@@ -6662,11 +6662,6 @@ class CollectArgTypeVarTypes(TypeTraverserVisitor):
     def visit_type_var(self, t: TypeVarType) -> None:
         self.arg_types.add(t)
 
-    def visit_intersection_type(self, t: IntersectionType) -> None:
-        for item in t.items:
-            self.arg_types.add(item)
-
-
 @overload
 def conditional_types(
     current_type: Type, proposed_type_ranges: list[TypeRange] | None, default: None = None

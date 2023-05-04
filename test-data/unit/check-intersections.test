@@ -22,3 +22,26 @@ def test3(x: Intersection[S, T]) -> R:
 main:6: error: A function returning TypeVar should receive at least one argument containing the same TypeVar
 main:7: error: Incompatible return value type (got "Intersection[S, T]", expected "R")
 
+[case testIntersection3]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+
+def test3(x: Intersection[Callable[[S], T], Callable[[R], T]], y: Union[S, R]) -> T:
+    return x(y)
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersection4]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+Q = TypeVar("Q")
+
+def test3(x: Intersection[Callable[[S], T], Callable[[R], T]], y: Union[S, R]) -> Q:
+    return x(y)
+[builtins fixtures/isinstance.pyi]
+[out]
+main:7: error: A function returning TypeVar should receive at least one argument containing the same TypeVar
+main:8: error: Incompatible return value type (got "T", expected "Q")
