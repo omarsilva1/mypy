@@ -98,6 +98,9 @@ class TypeTraverserVisitor(SyntheticTypeVisitor[None]):
     def visit_union_type(self, t: UnionType) -> None:
         self.traverse_types(t.items)
 
+    def visit_intersection_type(self, t: UnionType) -> None:
+        self.traverse_types(t.items)
+
     def visit_overloaded(self, t: Overloaded) -> None:
         self.traverse_types(t.items)
 
