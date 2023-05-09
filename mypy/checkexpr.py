@@ -2818,6 +2818,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                     self.check_call(subtype, args, arg_kinds, context, arg_names)
                     for subtype in callee.relevant_items()
                 ]
+                return IntersectionType(results[0]), callee
             self.check_call(callee, args, arg_kinds, context, arg_names)
             # for subtype in callee.relevant_items():
             #     print(subtype)
