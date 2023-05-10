@@ -69,16 +69,62 @@ def test3(x: Intersection[Callable[[S], R], Callable[[R], T]], y: Union[S, R]) -
 main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
 main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 
-[case testIntersection6]
+[case testIntersection7]
 from typing import TypeVar, Callable, Union, Intersection
 S = TypeVar("S")
 T = TypeVar("T")
 R = TypeVar("R")
 
-def test3(x: Intersection[Callable[[S], R], Callable[[R], T]], y: Union[S, R]) -> Union[T, R]:
-    return x(y)
+def test3(x: Intersection[Callable[[S, S], T], Callable[[R, R], T]], y: Union[S, R]) -> T:
+    return x(y, y)
 [builtins fixtures/isinstance.pyi]
-[out]
-main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
-main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 
+[case testIntersection8]
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+M = TypeVar("M")
+
+def identity(arg: T) -> T:
+    return arg
+def test3(x: Intersection[Callable[[S, S], T], Callable[[R, R], T]], y: Callable[[M], Union[S, R]], z: M) -> T:
+    return x((lambda arg: arg)(y(z)), y(z))
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersection9]
+# flags: --python-version 3.10
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+M = TypeVar("M")
+
+def g(
+    x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]],
+    y: Callable[[M], S | R],
+    z: M,
+) -> T:
+    return x((y(z)))(y(z))
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersection10]
+# flags: --python-version 3.10
+from typing import TypeVar, Callable, Union, Intersection
+class S:
+    pass
+class T1:
+    pass
+class T2(T1):
+    pass
+class R:
+    pass
+class M:
+    pass
+def g(
+    x: Callable[[S], Callable[[S], T2]] & Callable[[R], Callable[[R], T1]],
+    y: Callable[[M], S | R],
+    z: M,
+) -> T1:
+    return x((y(z)))(y(z))
+[builtins fixtures/isinstance.pyi]
