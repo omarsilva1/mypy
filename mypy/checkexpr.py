@@ -2844,6 +2844,14 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                     return True
         return False
 
+    def has_nested_callables(self, typ: Type) -> bool:
+        # Check if at least two items are callables and have a callable as a return type
+        if isinstance(typ, IntersectionType):
+            callable_count = sum(isinstance(item, CallableType) and isinstance(item.ret_type, CallableType)
+                                 for item in typ.items)
+            return callable_count > 1
+        return False
+
     def visit_member_expr(self, e: MemberExpr, is_lvalue: bool = False) -> Type:
         """Visit member expression (of form e.id)."""
         self.chk.module_refs.update(extract_refexpr_names(e))
