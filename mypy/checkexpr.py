@@ -2820,21 +2820,6 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                 ]
                 return IntersectionType(results[0]), callee
             self.check_call(callee, args, arg_kinds, context, arg_names)
-            # for subtype in callee.relevant_items():
-            #     print(subtype)
-            #     results.append(self.check_call(subtype, args, arg_kinds, context, arg_names))
-            print("callee:")
-            print(callee)
-            print("args[0].node.type")
-            print(args[0].node.type)
-
-            # results.append(self.check_call(callee.relevant_items()[0], args, arg_kinds, context, arg_names))
-            # results = [
-            #     self.check_call(subtype, args, arg_kinds, context, arg_names)
-            #     for subtype in callee.relevant_items()
-            # ]
-            # results = [self.check_call(callee, args, arg_kinds, context, arg_names)]
-        # return AnyType(TypeOfAny.special_form), AnyType(TypeOfAny.special_form)
         return IntersectionType(results[0]), callee
 
     def has_callable(self, typ: Type) -> bool:
