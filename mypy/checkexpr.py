@@ -2837,6 +2837,29 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             return callable_count > 1
         return False
 
+    def has_equal_ret_type(self, typ: IntersectionType) -> bool:
+        # Check if the return type is equal
+        # get one return type
+        ret_type = NoneType
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                ret_type = self.get_recursive_ret_type(item)
+        # check if all recursive return types of callables are the same
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                # TODO OMAR: change from equal to subtype
+                if self.get_recursive_ret_type(item) != ret_type:
+                    return False
+        return True
+
+
+    def get_recursive_ret_type(self, typ: Type) -> Type:
+        ret_type = typ
+        if isinstance(ret_type, CallableType):
+            while isinstance(ret_type, CallableType):
+                ret_type = ret_type.ret_type
+        return ret_type
+
     def visit_member_expr(self, e: MemberExpr, is_lvalue: bool = False) -> Type:
         """Visit member expression (of form e.id)."""
         self.chk.module_refs.update(extract_refexpr_names(e))
