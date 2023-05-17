@@ -2840,10 +2840,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
     def has_equal_ret_type(self, typ: IntersectionType) -> bool:
         # Check if the return type is equal
         # get one return type
-        ret_type = NoneType
-        for item in typ.items:
-            if isinstance(item, CallableType):
-                ret_type = self.get_recursive_ret_type(item)
+        ret_type = self.get_first_ret_type(typ)
         # check if all recursive return types of callables are the same
         for item in typ.items:
             if isinstance(item, CallableType):
@@ -2852,6 +2849,12 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                     return False
         return True
 
+    def get_first_ret_type(self, typ: IntersectionType) -> Type:
+        ret_type = NoneType
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                ret_type = self.get_recursive_ret_type(item)
+        return ret_type
 
     def get_recursive_ret_type(self, typ: Type) -> Type:
         ret_type = typ
