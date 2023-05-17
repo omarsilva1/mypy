@@ -2837,6 +2837,36 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             return callable_count > 1
         return False
 
+    def make_simplified_callable(self, typ: IntersectionType):
+        ret_type = self.get_first_ret_type(typ)
+        callables_to_merge = []
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                # TODO OMAR: change from equal to subtype
+                if self.get_recursive_ret_type(item) == ret_type:
+                    callables_to_merge.append(item)
+        return self.merge_callables(callables_to_merge)
+
+    def merge_callables(self, callables: List) -> CallableType:
+        arg_types = []
+        for item in callables:
+            arg_types.extend(item.arg_types)
+
+        if isinstance(callables[0].ret_type, CallableType):
+            ret_callables = [item.ret_type for item in callables]
+            ret_type = self.merge_callables(ret_callables)
+        else:
+            ret_type = callables[0].ret_type
+
+        new_callable = CallableType(
+            arg_types=[UnionType(arg_types)],
+            arg_kinds=callables[0].arg_kinds,
+            arg_names=callables[0].arg_names,
+            ret_type=ret_type,
+            fallback=callables[0].fallback,
+        )
+        return new_callable
+
     def has_equal_ret_type(self, typ: IntersectionType) -> bool:
         # Check if the return type is equal
         # get one return type
