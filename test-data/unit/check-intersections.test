@@ -107,8 +107,27 @@ def g(
 ) -> T:
     return x((y(z)))(y(z))
 [builtins fixtures/isinstance.pyi]
+[out]
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 
 [case testIntersection10]
+# flags: --python-version 3.10
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+M = TypeVar("M")
+
+def g(
+    x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[S], T]],
+    y: Callable[[M], S],
+    z: M,
+) -> T:
+    return x((y(z)))(y(z))
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersection11]
 # flags: --python-version 3.10
 from typing import TypeVar, Callable, Union, Intersection
 class S:
