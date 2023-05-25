@@ -101,11 +101,10 @@ R = TypeVar("R")
 M = TypeVar("M")
 
 def g(
-    x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]],
-    y: Callable[[M], S | R],
-    z: M,
-) -> T:
-    return x((y(z)))(y(z))
+    x: Callable[[int], Callable[[int], bool]] & Callable[[str], Callable[[str], bool]],
+) -> bool:
+    return x(3)("string")
+
 [builtins fixtures/isinstance.pyi]
 [out]
 main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
