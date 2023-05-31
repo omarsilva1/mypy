@@ -2770,8 +2770,10 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         with self.msg.disable_type_names():
             callable_types = []
             results = []
+
+            # Case for S -> T & R -> T
             if self.has_nested_callables(callee) and self.has_equal_ret_type(callee):
-                # TODO OMAR: support something like S -> S -> T & R - T
+                # TODO OMAR: support something like S -> S -> T & R -> T
                 #  for now we will assume the callables are equal in depth
                 new_callable = self.make_simplified_callable(callee)
                 return self.check_call(new_callable, args, arg_kinds, context, arg_names)
@@ -2825,7 +2827,6 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                     for subtype in callee.relevant_items()
                 ]
                 return IntersectionType(results[0]), callee
-            self.check_call(callee, args, arg_kinds, context, arg_names)
         return IntersectionType(results[0]), callee
 
     def has_callable(self, typ: Type) -> bool:
@@ -2875,13 +2876,13 @@ class ExpressionChecker(ExpressionVisitor[Type]):
 
     def has_equal_ret_type(self, typ: IntersectionType) -> bool:
         # Check if the return type is equal
-        # get one return type
-        ret_type = self.get_first_ret_type(typ)
+        # get first return type
+        ret_type = typ.items[0].ret_type
         # check if all recursive return types of callables are the same
         for item in typ.items:
             if isinstance(item, CallableType):
                 # TODO OMAR: change from equal to subtype
-                if self.get_recursive_ret_type(item) != ret_type:
+                if item.ret_type != ret_type:
                     return False
         return True
 
