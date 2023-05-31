@@ -2768,66 +2768,12 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         context: Context,
     ) -> tuple[Type, Type]:
         with self.msg.disable_type_names():
-            callable_types = []
-            results = []
+            results = [
+                self.check_call(subtype, args, arg_kinds, context, arg_names)
+                for subtype in callee.relevant_items()
+            ]
 
-            # Case for S -> T & R -> T
-            if self.has_nested_callables(callee) and self.has_equal_ret_type(callee):
-                # TODO OMAR: support something like S -> S -> T & R -> T
-                #  for now we will assume the callables are equal in depth
-                new_callable = self.make_simplified_callable(callee)
-                return self.check_call(new_callable, args, arg_kinds, context, arg_names)
-            elif self.has_callable(callee):
-                for item in callee.items:
-                    if isinstance(item, CallableType):
-                        callable_types.append(item)
-                # make unions for all callables that have the same return value
-                if len(callable_types) > 1:
-                    union_dictionary = {}
-                    for i in range(len(callable_types)):
-                        for j in range(1, len(callable_types)):
-                            if i != j:  # Ensure i is not equal to j
-                                if callable_types[i].ret_type == callable_types[j].ret_type:
-                                    ret_type = callable_types[i].ret_type
-                                    if ret_type not in union_dictionary:
-                                        union_dictionary[ret_type] = []
-                                    for l in range(len(callable_types[i].arg_types)):
-                                        union_set = set()
-                                        union_set.update(callable_types[i].arg_types)
-                                        union_set.update(callable_types[j].arg_types)
-                                        union_dictionary[ret_type].append(union_set)
-                    # Iterate through dictionary keys
-                    for ret_type, union_items in union_dictionary.items():
-                        if len(union_items) == 1 and len(union_items[0]) == 1:
-                            callable_args = list(union_items)
-                        else:
-                            callable_args = [UnionType(list(item)) for item in union_items]
-
-                        item_arg_kinds = []
-                        # for callable_type in callable_types:
-                        #     if callable_type.ret_type == ret_type:
-                        #         item_arg_kinds.extend(callable_type.arg_kinds)
-                        callable_arg_kinds = [ArgKind.ARG_POS for item in callable_args]
-                        callable_arg_names = [None for item in callable_args]
-                        # Create a callable and call check_call
-                        new_callable = CallableType(
-                            arg_types=callable_args,
-                            arg_kinds=callable_arg_kinds,
-                            arg_names=callable_arg_names,
-                            ret_type=ret_type,
-                            fallback=callable_types[0].fallback,
-                        )
-                        results.append(self.check_call(new_callable, args, arg_kinds, context, arg_names))
-                else:
-                    results.append(self.check_call(callable_types[0], args, arg_kinds, context, arg_names))
-                return IntersectionType(results[0]), callee
-            else:
-                results = [
-                    self.check_call(subtype, args, arg_kinds, context, arg_names)
-                    for subtype in callee.relevant_items()
-                ]
-                return IntersectionType(results[0]), callee
-        return IntersectionType(results[0]), callee
+        return (make_simplified_union([res[0] for res in results]), callee)
 
     def has_callable(self, typ: Type) -> bool:
         if isinstance(typ, IntersectionType):
