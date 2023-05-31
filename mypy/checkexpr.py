@@ -1301,7 +1301,16 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         elif isinstance(callee, UnionType):
             return self.check_union_call(callee, args, arg_kinds, arg_names, context)
         elif isinstance(callee, IntersectionType):
-            return self.check_intersection_call(callee, args, arg_kinds, arg_names, context)
+            return self.check_intersection_call(
+                callee,
+                args,
+                arg_kinds,
+                context,
+                arg_names,
+                callable_node,
+                callable_name,
+                object_type,
+            )
         elif isinstance(callee, Instance):
             call_function = analyze_member_access(
                 "__call__",
@@ -2764,10 +2773,43 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         callee: IntersectionType,
         args: list[Expression],
         arg_kinds: list[ArgKind],
-        arg_names: Sequence[str | None] | None,
         context: Context,
+        arg_names: Sequence[str | None] | None,
+        callable_node: Expression | None,
+        callable_name: str | None,
+        object_type: Type | None
     ) -> tuple[Type, Type]:
         with self.msg.disable_type_names():
+
+            if self.has_callable(callee):
+                # get all callables
+                callables = self.get_callables(callee)
+                # for every callable do
+                #     check if the first element is a subtype, if it is, return check_callable_call
+                for callable_type in callables:
+                    formal_to_actual = map_actuals_to_formals(
+                        arg_kinds,
+                        arg_names,
+                        callable_type.arg_kinds,
+                        callable_type.arg_names,
+                        lambda i: self.accept(args[i]),
+                    )
+                    caller_arg_types = self.infer_arg_types_in_context(callable_type, args, arg_kinds, formal_to_actual)
+                    callee_arg_types = callable_type.arg_types
+
+                    if is_subtype(caller_arg_types[0], callee_arg_types[0], options=self.chk.options):
+                        return self.check_callable_call(
+                            callable_type,
+                            args,
+                            arg_kinds,
+                            context,
+                            arg_names,
+                            callable_node,
+                            callable_name,
+                            object_type,
+                        )
+                pass
+
             results = [
                 self.check_call(subtype, args, arg_kinds, context, arg_names)
                 for subtype in callee.relevant_items()
@@ -2782,6 +2824,12 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                     return True
         return False
 
+    def get_callables(self, typ: IntersectionType) -> list[CallableType]:
+        callables = []
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                callables.append(item)
+        return callables
     def has_nested_callables(self, typ: Type) -> bool:
         # Check if at least two items are callables and have a callable as a return type
         if isinstance(typ, IntersectionType):
