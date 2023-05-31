@@ -107,8 +107,8 @@ def g(
 
 [builtins fixtures/isinstance.pyi]
 [out]
-main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
-main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
+main:11: error: Argument 1 has incompatible type "str"; expected "int"
+
 
 [case testIntersection10]
 # flags: --python-version 3.10
