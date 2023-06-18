@@ -1,4 +1,16 @@
 -- Type checking of intersection types
+[case testIntersection0]
+from typing import TypeVar, Union, Intersection
+S = TypeVar("S")
+
+class Loggable:
+    def log(self):
+        pass
+
+def test3(x: Intersection[S, Loggable]) -> int:
+    return x.log()
+[builtins fixtures/isinstance.pyi]
+
 
 [case testIntersection1]
 from typing import TypeVar, Callable, Union, Intersection

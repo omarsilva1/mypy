@@ -461,21 +461,25 @@ def analyze_intersection_member_access(name: str, typ: IntersectionType, mx: Mem
     # Option : change analyze_member_var_access to have a parameter is_intersection.
     #   If it is true we disable error giving
     has_member = False
+    result = IntersectionType([AnyType(type_of_any=5)])
     with mx.msg.disable_type_names():
-        results = []
         for subtype in typ.relevant_items():
-            print(subtype)
             # TODO OMAR Use info = typ.type -> info.get_method(name) instead of iterating
-            for attr in subtype.type.abstract_attributes:
-                if attr[0] == name:
+            if hasattr(subtype, "type"):
+                for attr in subtype.type.abstract_attributes:
+                    if attr[0] == name:
+                        has_member = True
+                if name in subtype.type.names:
                     has_member = True
+                if has_member:
+                    _analyze_member_access(name, subtype, mx)
             # Self types should be bound to every individual item of a union.
             # item_mx = mx.copy_modified(self_type=subtype)
             # results.append(_analyze_member_access(name, subtype, item_mx))
     if not has_member:
         report_missing_attribute(mx.original_type, typ, name, mx)
     # accept everything
-    return IntersectionType([AnyType(type_of_any=5)])
+    return result
 
 
 def analyze_none_member_access(name: str, typ: NoneType, mx: MemberContext) -> Type:
