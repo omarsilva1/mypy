@@ -1,4 +1,27 @@
 -- Type checking of intersection types
+[case testIntersectionX]
+from typing import Intersection
+test: Intersection[int, str]
+reveal_type(test)  # N: Revealed type is "Intersection[builtins.int, builtins.str]"
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersection00]
+from typing import TypeVar, Union, Intersection
+
+class Loggable:
+    def log(self):
+        pass
+
+class Entity:
+    def ser(self):
+        pass
+
+class LoggableEntity(Loggable, Entity):
+    pass
+
+test: Intersection[Loggable, Entity] = LoggableEntity()
+[builtins fixtures/isinstance.pyi]
+
 [case testIntersection0]
 from typing import TypeVar, Union, Intersection
 S = TypeVar("S")
