@@ -1,8 +1,14 @@
 -- Type checking of intersection types
-[case testIntersectionX]
-from typing import Intersection
-test: Intersection[int, str]
-reveal_type(test)  # N: Revealed type is "Intersection[builtins.int, builtins.str]"
+[case testIntersectionMember]
+from typing import TypeVar, Union, Intersection
+S = TypeVar("S")
+
+class Loggable:
+    def log(self):
+        pass
+
+def test3(x: Intersection[S, Loggable]) -> int:
+    return x.log()
 [builtins fixtures/isinstance.pyi]
 
 [case testIntersection00]
@@ -12,14 +18,29 @@ class Loggable:
     def log(self):
         pass
 
-class Entity:
-    def ser(self):
+class Serializable:
+    def serialize(self):
         pass
 
-class LoggableEntity(Loggable, Entity):
+class LoggableSerializable(Loggable, Serializable):
     pass
 
-test: Intersection[Loggable, Entity] = LoggableEntity()
+test: Intersection[Loggable, Serializable] = LoggableSerializable()
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersectionOfProtocols]
+from typing import Protocol, Union, Intersection
+class Drawable(Protocol):
+    def draw(self) -> None:
+        ...
+
+class Movable(Protocol):
+    def move(self, x: float, y: float) -> None:
+        ...
+
+def draw_and_move(obj: Drawable & Movable) -> bool:
+    obj.move(10, 20)
+    return True
 [builtins fixtures/isinstance.pyi]
 
 [case testIntersection0]
@@ -56,6 +77,41 @@ def test3(x: Intersection[S, T]) -> R:
 [out]
 main:6: error: A function returning TypeVar should receive at least one argument containing the same TypeVar
 main:7: error: Incompatible return value type (got "Intersection[S, T]", expected "R")
+
+[case testIntersectionOfCallables1]
+from typing import TypeVar, Callable, Union, Intersection
+
+def test3(x: Intersection[Callable[[int], bool], Callable[[str], bool]], y: Union[int, str]) -> bool:
+    return x(y)
+
+def x(arg : Union[int, str]) -> bool:
+    return True
+
+test3(x, "3")
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersectionRealExampleBug]
+from typing import TypeVar, Callable, Union, Intersection
+
+def test3(x: Intersection[Callable[[int], bool], Callable[[str], bool]], y: Union[int, str]) -> bool:
+    return x(y)
+
+def f(x: Union[int, str]) -> bool:
+    return True
+ret = test3(f, 3)
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersectionRealExample]
+from typing import TypeVar, Callable, Union, Intersection
+
+def test3(x: Intersection[Callable[[int], bool], Callable[[str], bool]], y: Union[int, str]) -> bool:
+    return x(y)
+
+def f(x: Union[int, str]) -> bool:
+    return True
+
+result: bool = test3(f, "3")
+[builtins fixtures/isinstance.pyi]
 
 [case testIntersection3]
 from typing import TypeVar, Callable, Union, Intersection
