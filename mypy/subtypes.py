@@ -218,11 +218,21 @@ def _get_any_term(items, intersection_index):
     return item_index
 
 
+def distribute_intersection(term: UnionType, intersection_index: int, other_item_index: int) -> IntersectionType:
+    instance_item = term.items[other_item_index]
+    intersection_type_items = term.items[intersection_index].items
+    new_unions = []
+    for item in intersection_type_items:
+        new_union = UnionType([item, instance_item])
+        new_unions.append(convert_to_cnf(new_union))
+    if len(term.items) > 2:
+        del term.items[intersection_index]
+        del term.items[other_item_index]
+        return convert_to_cnf(UnionType(term.items + [IntersectionType(new_unions)]))
+    return IntersectionType(new_unions)
+
+
 def convert_to_cnf(term: Type) -> Type:
-    if isinstance(term, Instance) or isinstance(term, AnyType) or \
-            isinstance(term, TypeType) or isinstance(term, LiteralType) or \
-            isinstance(term, UninhabitedType):
-        return term
     if isinstance(term, CallableType):
         cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
         cnf_ret_type = convert_to_cnf(term.ret_type)
@@ -237,31 +247,17 @@ def convert_to_cnf(term: Type) -> Type:
     if isinstance(term, UnionType):
         intersection_index = _get_intersection_term(term.items)
         if intersection_index is None:
-            return UnionType([convert_to_cnf(item) for item in term.items])
+            return term
         else:
             other_item_index = _get_any_term(term.items, intersection_index)
             if other_item_index is None:
                 return term.items[intersection_index]
             else:
-                instance_item = term.items[other_item_index]
-                intersection_type_items = term.items[intersection_index].items
-                new_unions = []
-                for item in intersection_type_items:
-                    new_union = UnionType([item, instance_item])
-                    new_unions.append(convert_to_cnf(new_union))
-                if len(term.items) > 2:
-                    del term.items[intersection_index]
-                    del term.items[other_item_index]
-                    return convert_to_cnf(UnionType(term.items + [IntersectionType(new_unions)]))
-                return IntersectionType(new_unions)
+                return distribute_intersection(term, intersection_index, other_item_index)
     else:
         return term
 
 def convert_to_dnf(term: Type) -> Type:
-    if isinstance(term, Instance) or isinstance(term, AnyType) or \
-            isinstance(term, TypeType) or isinstance(term, LiteralType) or \
-            isinstance(term, UninhabitedType):
-        return term
     if isinstance(term, CallableType):
         dnf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
         dnf_ret_type = convert_to_dnf(term.ret_type)
