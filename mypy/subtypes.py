@@ -221,10 +221,8 @@ def _get_any_term(items, intersection_index):
 def distribute_intersection(term: UnionType, intersection_index: int, other_item_index: int) -> IntersectionType:
     instance_item = term.items[other_item_index]
     intersection_type_items = term.items[intersection_index].items
-    new_unions = []
-    for item in intersection_type_items:
-        new_union = UnionType([item, instance_item])
-        new_unions.append(convert_to_cnf(new_union))
+    new_unions = [convert_to_cnf(UnionType([item, instance_item])) for item in intersection_type_items]
+
     if len(term.items) > 2:
         del term.items[intersection_index]
         del term.items[other_item_index]
@@ -232,7 +230,7 @@ def distribute_intersection(term: UnionType, intersection_index: int, other_item
     return IntersectionType(new_unions)
 
 
-def convert_to_cnf(term: Type) -> Type:
+def convert_to_cnf(term: Type) -> Type | IntersectionType:
     if isinstance(term, CallableType):
         cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
         cnf_ret_type = convert_to_cnf(term.ret_type)

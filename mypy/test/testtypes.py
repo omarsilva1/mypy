@@ -373,8 +373,11 @@ class TypeOpsSuite(Suite):
         e = fx.e
 
         test_cases = [
+            # a ∨ (b ∧ c) => (a ∨ b) ∧ (a ∨ c)
             (union(a, intersect(b, c)), intersect(union(a, b), union(a, c))),
+            # (a ∧ b) ∨ c => (a ∨ c) ∧ (b ∨ c)
             (union(intersect(a, b), c), intersect(union(a, c), union(b, c))),
+            # (a ∧ b) ∧ (c ∨ (d ∧ e)) => a ∧ b ∧ (c ∨ d) ∧ (c ∨ e)
             (intersect(intersect(a, b), union(c, intersect(d, e))), intersect(a, b, union(c, d), union(c, e))),
             # (a ∧ b) ∨ (c ∧ d) => (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
             (union(intersect(a, b), intersect(c, d)), intersect(
