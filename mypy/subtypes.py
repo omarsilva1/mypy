@@ -292,58 +292,49 @@ def convert_to_dnf(term: Type) -> Type:
 
 #  TODO OMAR: think about rules for callable with multiple arguments and hwo to subtype that
 def convert_to_anf(term: Type) -> Type:
-    if isinstance(term, CallableType):
-        anf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
-        anf_ret_type = convert_to_cnf(term.ret_type)
-        anf_arrow = CallableType(arg_types=anf_arg_types,
-                                 arg_names=term.arg_names,
-                                 ret_type=anf_ret_type,
-                                 fallback=term.fallback,
-                                 arg_kinds=term.arg_kinds)
-        # rewrite term  ∪iσi → ∩j τj rewrites to ∩i(∩j (σi → τj )).
-        intersections = []
-        if len(anf_arg_types) == 0:
-            return anf_arrow
-        union_term_index = _get_union_term(anf_arg_types)
-        if union_term_index is not None and isinstance(anf_ret_type, IntersectionType):
+    if not isinstance(term, CallableType):
+        return term
+
+    anf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
+    anf_ret_type = convert_to_cnf(term.ret_type)
+
+    anf_arrow = _construct_callable(anf_arg_types, anf_ret_type, term)
+    # ∪iσi → ∩j τj rewrites to ∩i(∩j (σi → τj )).
+    intersections = []
+    if len(anf_arg_types) == 0:
+        return anf_arrow
+    union_term_index = _get_union_term(anf_arg_types)
+    if isinstance(anf_ret_type, IntersectionType):
+        if union_term_index is not None:
             for union_item in anf_arg_types[union_term_index].items:
                 for intersection_item in anf_ret_type.items:
-                    new_arrow = CallableType(arg_types=[union_item],
-                                             arg_names=term.arg_names,
-                                             ret_type=intersection_item,
-                                             fallback=term.fallback,
-                                             arg_kinds=term.arg_kinds)
+                    new_arrow = _construct_callable([union_item], intersection_item, term)
                     intersections.append(new_arrow)
             return IntersectionType(intersections)
-        elif union_term_index is not None:
-            for item in anf_arg_types[union_term_index].items:
-                new_arg_types=anf_arg_types[:union_term_index] + [item] + anf_arg_types[union_term_index+1:]
-                # new_arg_names=term.arg_names[:union_term_index] + term.arg_names[union_term_index+1:]
-                # new_arg_kinds=
-                new_arrow = CallableType(arg_types=new_arg_types,
-                                         arg_names=term.arg_names,
-                                         ret_type=anf_ret_type,
-                                         fallback=term.fallback,
-                                         arg_kinds=term.arg_kinds)
-                intersections.append(new_arrow)
-            return IntersectionType(intersections)
-        elif isinstance(anf_ret_type, IntersectionType):
-            for item in anf_ret_type.items:
-                new_arrow = CallableType(arg_types=anf_arg_types,
-                                         arg_names=term.arg_names,
-                                         ret_type=item,
-                                         fallback=term.fallback,
-                                         arg_kinds=term.arg_kinds)
-                intersections.append(new_arrow)
-            return IntersectionType(intersections)
         else:
-            return anf_arrow
-    elif isinstance(term, UnionType):
-        return UnionType([convert_to_anf(item) for item in term.items])
-    elif isinstance(term, IntersectionType):
-        return IntersectionType([convert_to_anf(item) for item in term.items])
+            for item in anf_ret_type.items:
+                new_arrow = _construct_callable(anf_arg_types, item, term)
+                intersections.append(new_arrow)
+            return IntersectionType(intersections)
+    elif union_term_index is not None:
+        for item in anf_arg_types[union_term_index].items:
+            new_arg_types=anf_arg_types[:union_term_index] + [item] + anf_arg_types[union_term_index+1:]
+            # new_arg_names=term.arg_names[:union_term_index] + term.arg_names[union_term_index+1:]
+            # new_arg_kinds=
+            new_arrow = _construct_callable(new_arg_types, anf_ret_type, term)
+            intersections.append(new_arrow)
+        return IntersectionType(intersections)
     else:
-        return term
+        return anf_arrow
+
+
+def _construct_callable(anf_arg_types, anf_ret_type, term):
+    return CallableType(arg_types=anf_arg_types,
+                        arg_names=term.arg_names,
+                        ret_type=anf_ret_type,
+                        fallback=term.fallback,
+                        arg_kinds=term.arg_kinds)
+
 
 def canf(term: Type) -> Type:
     return convert_to_cnf(convert_to_anf(simplify_omega(term)))
