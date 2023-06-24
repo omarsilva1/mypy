@@ -292,6 +292,10 @@ def convert_to_dnf(term: Type) -> Type:
 
 #  TODO OMAR: think about rules for callable with multiple arguments and hwo to subtype that
 def convert_to_anf(term: Type) -> Type:
+    if isinstance(term, UnionType):
+        return UnionType([convert_to_anf(item) for item in term.items])
+    if isinstance(term, IntersectionType):
+        return IntersectionType([convert_to_anf(item) for item in term.items])
     if not isinstance(term, CallableType):
         return term
 
@@ -316,7 +320,7 @@ def convert_to_anf(term: Type) -> Type:
                 new_arrow = _construct_callable(anf_arg_types, item, term)
                 intersections.append(new_arrow)
             return IntersectionType(intersections)
-    elif union_term_index is not None:
+    if union_term_index is not None:
         for item in anf_arg_types[union_term_index].items:
             new_arg_types=anf_arg_types[:union_term_index] + [item] + anf_arg_types[union_term_index+1:]
             # new_arg_names=term.arg_names[:union_term_index] + term.arg_names[union_term_index+1:]
