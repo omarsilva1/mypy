@@ -545,6 +545,26 @@ class TypeOpsSuite(Suite):
                 arrow(b, c, d, e)
             )),
 
+            (intersect(arrow(union(a, b), c, d, e), a), intersect(
+                arrow(a, c, d, e),
+                arrow(b, c, d, e),
+                a
+            )),
+
+            (union(arrow(union(a, b), c, d, e), a), union(intersect(
+                arrow(a, c, d, e),
+                arrow(b, c, d, e)),
+                a
+            )),
+
+            # ((a ∨ b),(c v d)) -> c => (a,c → e) ∧ (a,d → e) ∧ (b,c → e) ∧ (b,d → e)
+            (arrow(union(a, b), union(c, d), e), intersect(
+                arrow(a, c, e),
+                arrow(a, d, e),
+                arrow(b, c, e),
+                arrow(b, d, e),
+            )),
+
             # ω => ω
             (omega, omega),
 
@@ -628,19 +648,27 @@ class TypeOpsSuite(Suite):
                 arrow(intersect(a, c), union(d, f)),
             )),
         ]
-        # current_test_case = 0
-        # print("\nTesting case: " + str(current_test_case))
-        # print(test_cases[current_test_case][0])
-        # print(test_cases[current_test_case][1])
-        # converted = convert_to_anf(test_cases[current_test_case][0])
-        # assert_equal(converted, test_cases[current_test_case][1])
-
+        # self.test_single_case(test_cases, 10)
+        #
         for index, (test_case, expected_result) in enumerate(test_cases):
             print(f"Index: {index}")
             print(test_case)
             print(expected_result)
             converted = convert_to_anf(test_case)
             assert_equal(converted, expected_result)
+
+    def test_single_case(self, test_cases, current_test_case):
+        print("\nTesting case: " + str(current_test_case))
+        print(test_cases[current_test_case][0])
+        print(test_cases[current_test_case][1])
+        converted = convert_to_anf(test_cases[current_test_case][0])
+        print("\noriginal:")
+        print(test_cases[current_test_case][0])
+        print("converted:")
+        print(converted)
+        print("expected:")
+        print(test_cases[current_test_case][1])
+        assert_equal(converted, test_cases[current_test_case][1])
 
     def test_is_BCDd95_subtype(self) -> None:
         fx = self.fx_co
