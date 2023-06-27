@@ -178,7 +178,7 @@ def is_subtype(
             return _is_subtype(left, right, subtype_context, proper_subtype=False)
     if has_recursive_types(left) or has_recursive_types(right):
         return _is_subtype(left, right, subtype_context, proper_subtype=False)
-    return is_BCDd95_subtype(left, right, subtype_context, proper_subtype=False)
+    return is_xi_subtype(left, right, subtype_context, proper_subtype=False)
 
 def simplify_omega(term: Type) -> Type:
     if isinstance(term, IntersectionType):
@@ -218,7 +218,7 @@ def _get_any_term(items, intersection_index):
     return item_index
 
 
-def distribute_union(term: UnionType, intersection_index: int, other_item_index: int) -> IntersectionType:
+def distribute_union(term: UnionType, intersection_index: int, other_item_index: int) -> Type:
     instance_item = term.items[other_item_index]
     intersection_type_items = term.items[intersection_index].items
     new_unions = [convert_to_cnf(UnionType([item, instance_item])) for item in intersection_type_items]
@@ -230,15 +230,24 @@ def distribute_union(term: UnionType, intersection_index: int, other_item_index:
     return IntersectionType(new_unions)
 
 
-def convert_to_cnf(term: Type) -> Type | IntersectionType:
+def distribute_intersection(term: IntersectionType, other_item_index: int, union_index: int) -> Type:
+    instance_item = term.items[other_item_index]
+    union_type_items = term.items[union_index].items
+    new_intersections = []
+    for item in union_type_items:
+        new_intersection = IntersectionType([item, instance_item])
+        new_intersections.append(convert_to_dnf(new_intersection))
+    if len(term.items) > 2:
+        del term.items[union_index]
+        del term.items[other_item_index]
+        return convert_to_dnf(IntersectionType(term.items + [UnionType(new_intersections)]))
+    return UnionType(new_intersections)
+
+def convert_to_cnf(term: Type) -> Type:
     if isinstance(term, CallableType):
         cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
         cnf_ret_type = convert_to_cnf(term.ret_type)
-        cnf_arrow = CallableType(arg_types=cnf_arg_types,
-                                 arg_names=term.arg_names,
-                                 ret_type=cnf_ret_type,
-                                 fallback=term.fallback,
-                                 arg_kinds=term.arg_kinds)
+        cnf_arrow = _construct_callable(cnf_arg_types, cnf_ret_type, term)
         return cnf_arrow
     if isinstance(term, IntersectionType):
         return IntersectionType([convert_to_cnf(item) for item in term.items])
@@ -248,10 +257,7 @@ def convert_to_cnf(term: Type) -> Type | IntersectionType:
             return term
         else:
             other_item_index = _get_any_term(term.items, intersection_index)
-            if other_item_index is None:
-                return term.items[intersection_index]
-            else:
-                return distribute_union(term, intersection_index, other_item_index)
+            return distribute_union(term, intersection_index, other_item_index)
     else:
         return term
 
@@ -259,11 +265,7 @@ def convert_to_dnf(term: Type) -> Type:
     if isinstance(term, CallableType):
         dnf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
         dnf_ret_type = convert_to_dnf(term.ret_type)
-        dnf_arrow = CallableType(arg_types=dnf_arg_types,
-                                 arg_names=term.arg_names,
-                                 ret_type=dnf_ret_type,
-                                 fallback=term.fallback,
-                                 arg_kinds=term.arg_kinds)
+        dnf_arrow = _construct_callable(dnf_arg_types, dnf_ret_type, term)
         return dnf_arrow
     if isinstance(term, UnionType):
         return UnionType([convert_to_dnf(item) for item in term.items])
@@ -273,22 +275,10 @@ def convert_to_dnf(term: Type) -> Type:
             return IntersectionType([convert_to_dnf(item) for item in term.items])
         else:
             other_item_index = _get_any_term(term.items, union_index)
-            if other_item_index is None:
-                return term.items[union_index]
-            else:
-                instance_item = term.items[other_item_index]
-                union_type_items = term.items[union_index].items
-                new_intersections = []
-                for item in union_type_items:
-                    new_intersection = IntersectionType([item, instance_item])
-                    new_intersections.append(convert_to_cnf(new_intersection))
-                if len(term.items) > 2:
-                    del term.items[union_index]
-                    del term.items[other_item_index]
-                    return convert_to_dnf(IntersectionType(term.items + [UnionType(new_intersections)]))
-                return UnionType(new_intersections)
+            return distribute_intersection(term, other_item_index, union_index)
     else:
         return term
+
 
 #  TODO OMAR: think about rules for callable with multiple arguments and hwo to subtype that
 def convert_to_anf(term: Type) -> Type:
@@ -318,10 +308,10 @@ def convert_to_anf(term: Type) -> Type:
     return term
 
 
-def _construct_callable(anf_arg_types, anf_ret_type, term):
-    return CallableType(arg_types=anf_arg_types,
+def _construct_callable(arg_types, ret_type, term):
+    return CallableType(arg_types=arg_types,
                         arg_names=term.arg_names,
-                        ret_type=anf_ret_type,
+                        ret_type=ret_type,
                         fallback=term.fallback,
                         arg_kinds=term.arg_kinds)
 
@@ -333,34 +323,29 @@ def danf(term: Type) -> Type:
     return convert_to_dnf(convert_to_anf(simplify_omega(term)))
 
 
-def _is_BCDd95_subtype(left: Type, right: Type, subtype_context, proper_subtype) -> bool:
-    if isinstance(right, AnyType) or isinstance(left, AnyType):
-        return True
-    elif left == right:
-       return True
-    elif isinstance(left, Instance) and isinstance(right, Instance):
-        return _is_subtype(left, right, subtype_context, proper_subtype)
-    elif isinstance(left, UnionType):
-        return all(_is_BCDd95_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
+def _is_xi_subtype(left: Type, right: Type, subtype_context, proper_subtype) -> bool:
+    if isinstance(left, UnionType):
+        return all(_is_xi_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
     elif isinstance(right, IntersectionType):
-        return all(_is_BCDd95_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
+        return all(_is_xi_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
     elif isinstance(left, IntersectionType):
-        return any(_is_BCDd95_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
+        return any(_is_xi_subtype(item, right, subtype_context, proper_subtype) for item in left.items)
     elif isinstance(right, UnionType):
-        return any(_is_BCDd95_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
+        return any(_is_xi_subtype(left, item, subtype_context, proper_subtype) for item in right.items)
     elif isinstance(left, CallableType) and isinstance(right, CallableType):
         if len(right.arg_types) != len(left.arg_types):
             return False
-        result = all(_is_BCDd95_subtype(right.arg_types[i], left.arg_types[i], subtype_context, proper_subtype) for i, _ in enumerate(right.arg_types))
-        result = result and _is_BCDd95_subtype(left.ret_type, right.ret_type, subtype_context, proper_subtype)
+        result = all(_is_xi_subtype(right.arg_types[i], left.arg_types[i], subtype_context, proper_subtype) for i, _ in enumerate(right.arg_types))
+        result = result and _is_xi_subtype(left.ret_type, right.ret_type, subtype_context, proper_subtype)
         return result
     else:
         return _is_subtype(left, right, subtype_context, proper_subtype)
 
 
-def is_BCDd95_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=False) -> bool:
+def is_xi_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=False) -> bool:
     left = get_proper_type(left)
     right = get_proper_type(right)
+    # TODO OMAR: transform classes with multiple inheritance to intersection type
     if subtype_context is None:
         subtype_context = SubtypeContext(
             ignore_type_params=False,
@@ -370,7 +355,7 @@ def is_BCDd95_subtype(left: Type, right: Type, subtype_context=None, proper_subt
             ignore_uninhabited=False,
             options=None,
         )
-    return _is_BCDd95_subtype(danf(left), canf(right), subtype_context, proper_subtype)
+    return _is_xi_subtype(danf(left), canf(right), subtype_context, proper_subtype)
 
 def is_proper_subtype(
     left: Type,
@@ -1132,53 +1117,53 @@ class SubtypeVisitor(TypeVisitor[bool]):
 
         return all(self._is_subtype(item, self.orig_right) for item in left.items)
 
-    def visit_intersection_type(self, left: IntersectionType) -> bool:
-        if isinstance(self.right, Instance):
-            return any(self._is_subtype(item, self.orig_right) for item in left.relevant_items())
-
-        elif isinstance(self.right, IntersectionType):
-            # prune literals early to avoid nasty quadratic behavior which would otherwise arise when checking
-            # subtype relationships between slightly different narrowings of an Enum
-            # we achieve O(N+M) instead of O(N*M)
-            fast_check: set[ProperType] = set()
-
-            for item in _flattened(left.relevant_items()):
-                p_item = get_proper_type(item)
-                if isinstance(p_item, LiteralType):
-                    fast_check.add(p_item)
-                elif isinstance(p_item, Instance):
-                    if p_item.last_known_value is None:
-                        fast_check.add(p_item)
-                    else:
-                        fast_check.add(p_item.last_known_value)
-
-            # TODO OMAR: should we check if types are incompatible?
-            for item in self.right.relevant_items():
-                p_item = get_proper_type(item)
-                if p_item in fast_check:
-                    continue
-                lit_type = mypy.typeops.simple_literal_type(p_item)
-                if lit_type in fast_check:
-                    continue
-                if not any(self._is_subtype(fast_check_item, item) for fast_check_item in fast_check):
-                    return False
-            return True
-        elif isinstance(self.right, CallableType):
-            # TODO OMAR: only implemented for the case that sigma is one type only, could be extended recursively
-            # check case where (σ -> τ1) & (σ -> τ2) <= σ -> (τ1 & τ2)
-            # check left hand sigma is equal
-            if len(left.items) == 2:
-                callable_types = [item.alias.target if isinstance(item, TypeAliasType) else item for item in left.items]
-
-                # check if right hand sigma is equal to left
-                if type(self.right) == CallableType and callable_types[0].arg_types == self.right.arg_types:
-                    # check if t1 und t2 are in right hand return types
-                    for left_item in callable_types:
-                        if left_item.ret_type not in self.right.ret_type.items:
-                            return False
-                    return True
-
-        return all(self._is_subtype(item, self.orig_right) for item in left.items)
+    # def visit_intersection_type(self, left: IntersectionType) -> bool:
+    #     if isinstance(self.right, Instance):
+    #         return any(self._is_subtype(item, self.orig_right) for item in left.relevant_items())
+    #
+    #     elif isinstance(self.right, IntersectionType):
+    #         # prune literals early to avoid nasty quadratic behavior which would otherwise arise when checking
+    #         # subtype relationships between slightly different narrowings of an Enum
+    #         # we achieve O(N+M) instead of O(N*M)
+    #         fast_check: set[ProperType] = set()
+    #
+    #         for item in _flattened(left.relevant_items()):
+    #             p_item = get_proper_type(item)
+    #             if isinstance(p_item, LiteralType):
+    #                 fast_check.add(p_item)
+    #             elif isinstance(p_item, Instance):
+    #                 if p_item.last_known_value is None:
+    #                     fast_check.add(p_item)
+    #                 else:
+    #                     fast_check.add(p_item.last_known_value)
+    #
+    #         # TODO OMAR: should we check if types are incompatible?
+    #         for item in self.right.relevant_items():
+    #             p_item = get_proper_type(item)
+    #             if p_item in fast_check:
+    #                 continue
+    #             lit_type = mypy.typeops.simple_literal_type(p_item)
+    #             if lit_type in fast_check:
+    #                 continue
+    #             if not any(self._is_subtype(fast_check_item, item) for fast_check_item in fast_check):
+    #                 return False
+    #         return True
+    #     elif isinstance(self.right, CallableType):
+    #         # TODO OMAR: only implemented for the case that sigma is one type only, could be extended recursively
+    #         # check case where (σ -> τ1) & (σ -> τ2) <= σ -> (τ1 & τ2)
+    #         # check left hand sigma is equal
+    #         if len(left.items) == 2:
+    #             callable_types = [item.alias.target if isinstance(item, TypeAliasType) else item for item in left.items]
+    #
+    #             # check if right hand sigma is equal to left
+    #             if type(self.right) == CallableType and callable_types[0].arg_types == self.right.arg_types:
+    #                 # check if t1 und t2 are in right hand return types
+    #                 for left_item in callable_types:
+    #                     if left_item.ret_type not in self.right.ret_type.items:
+    #                         return False
+    #                 return True
+    #
+    #     return all(self._is_subtype(item, self.orig_right) for item in left.items)
 
     def visit_partial_type(self, left: PartialType) -> bool:
         # This is indeterminate as we don't really know the complete type yet.

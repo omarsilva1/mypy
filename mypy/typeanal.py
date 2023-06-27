@@ -1112,14 +1112,6 @@ class TypeAnalyser(SyntheticTypeVisitor[Type], TypeAnalyzerPluginInterface):
         return UnionType(self.anal_array(t.items), t.line)
 
     def visit_intersection_type(self, t: IntersectionType) -> Type:
-        #  TODO OMAR: remove Pep checks
-        if (
-            t.uses_pep604_syntax is True
-            and t.is_evaluated is True
-            and not self.always_allow_new_syntax
-            and not self.options.python_version >= (3, 10)
-        ):
-            self.fail("X & Y syntax for intersections requires Python 3.10", t, code=codes.SYNTAX)
         return IntersectionType(self.anal_array(t.items), t.line)
 
 

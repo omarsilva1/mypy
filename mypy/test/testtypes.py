@@ -10,7 +10,7 @@ from mypy.meet import meet_types, narrow_declared_type
 from mypy.nodes import ARG_OPT, ARG_POS, ARG_STAR, ARG_STAR2, CONTRAVARIANT, COVARIANT, INVARIANT
 from mypy.state import state
 from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype, simplify_omega, \
-    convert_to_cnf, convert_to_dnf, convert_to_anf, is_BCDd95_subtype
+    convert_to_cnf, convert_to_dnf, convert_to_anf, is_xi_subtype
 from mypy.test.helpers import Suite, assert_equal, assert_type, skip
 from mypy.test.typefixture import InterfaceTypeFixture, TypeFixture
 from mypy.typeops import false_only, make_simplified_union, true_only
@@ -413,6 +413,11 @@ class TypeOpsSuite(Suite):
                 union(c, d),
             )),
 
+            (
+                intersect(a, union(b, (intersect(c, d)))),
+                intersect(a, union(b, c), union(b, d))
+            ),
+
             # (a ∧ b) ∨ (c ∧ d) => (a ∨ c) ∧ (a ∨ d) ∧ (b ∨ c) ∧ (b ∨ d)
             (union(intersect(a, b), intersect(c, d)), intersect(
                 union(a, c),
@@ -787,7 +792,7 @@ class TypeOpsSuite(Suite):
 
         for index, (left, right) in enumerate(test_cases):
             print(f"Index: {index}")
-            assert is_BCDd95_subtype(left, right)
+            assert is_xi_subtype(left, right)
 
 
     def test_intersection(self) -> None:
