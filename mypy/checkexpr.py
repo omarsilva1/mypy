@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import time
+import copy
 from contextlib import contextmanager
 from typing import Callable, ClassVar, Iterator, List, Optional, Sequence, cast
 from typing_extensions import Final, TypeAlias as _TypeAlias, overload
@@ -116,6 +117,7 @@ from mypy.typeops import (
     function_type,
     is_literal_type_like,
     make_simplified_union,
+    make_simplified_intersection,
     simple_literal_type,
     true_only,
     try_expanding_sum_type_to_union,
@@ -557,9 +559,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         if isinstance(ret_type, UnionType):
             ret_type = make_simplified_union(ret_type.items)
         if isinstance(ret_type, IntersectionType):
-            pass
-            # NOT IMPLEMENTED ?
-            #    TODO OMAR: check if ret type has to be changed here.
+            ret_type = make_simplified_intersection(ret_type.items)
         if isinstance(ret_type, UninhabitedType) and not ret_type.ambiguous:
             self.chk.binder.unreachable()
         # Warn on calls to functions that always return None. The check
@@ -2782,33 +2782,8 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         with self.msg.disable_type_names():
 
             if self.has_callable(callee):
-                # get all callables
-                callables = self.get_callables(callee)
-                # for every callable do
-                #     check if the first element is a subtype, if it is, return check_callable_call
-                for callable_type in callables:
-                    formal_to_actual = map_actuals_to_formals(
-                        arg_kinds,
-                        arg_names,
-                        callable_type.arg_kinds,
-                        callable_type.arg_names,
-                        lambda i: self.accept(args[i]),
-                    )
-                    caller_arg_types = self.infer_arg_types_in_context(callable_type, args, arg_kinds, formal_to_actual)
-                    callee_arg_types = callable_type.arg_types
-
-                    if is_subtype(caller_arg_types[0], callee_arg_types[0], options=self.chk.options):
-                        return self.check_callable_call(
-                            callable_type,
-                            args,
-                            arg_kinds,
-                            context,
-                            arg_names,
-                            callable_node,
-                            callable_name,
-                            object_type,
-                        )
-                pass
+                return self.handle_intersection_of_callables(callee, args, arg_kinds, context, arg_names, callable_node,
+                                                             callable_name, object_type)
 
             results = [
                 self.check_call(subtype, args, arg_kinds, context, arg_names)
@@ -2816,6 +2791,91 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             ]
 
         return (make_simplified_union([res[0] for res in results]), callee)
+
+    def handle_intersection_of_callables(
+        self,
+        callee: IntersectionType,
+        args: list[Expression],
+        arg_kinds: list[ArgKind],
+        context: Context,
+        arg_names: Sequence[str | None] | None,
+        callable_node: Expression | None,
+        callable_name: str | None,
+        object_type: Type | None
+    ):
+        # get all callables in the intersection type
+        callables = self.get_callables(callee)
+
+        # for every callable do
+        #     check if the first element is a subtype, if it is, return check_callable_call
+        callee_arg_types_list = []
+        for callable_type in callables:
+            callee_arg_types, caller_arg_types = self.infer_calle_caller_args(arg_kinds, arg_names, args, callable_type,
+                                                                              callee_arg_types_list)
+
+            if is_subtype(caller_arg_types[0], callee_arg_types[0], options=self.chk.options):
+                return self.check_callable_call(
+                    callable_type,
+                    args,
+                    arg_kinds,
+                    context,
+                    arg_names,
+                    callable_node,
+                    callable_name,
+                    object_type,
+                )
+        # Check for union. In this case, call check_callable_call for every element in the union with the
+        # correct callable, if this isnt found, report wrong attribute
+        results = []
+        for union_item in caller_arg_types[0].items:
+            found = False
+            for callable_type in callables:
+                if is_subtype(union_item, callable_type.arg_types[0]):
+                    args_copy = copy.copy(args)
+                    original_items = args_copy[0].node.type.items
+                    args_copy[0].node.type.items = [union_item]
+                    results.append(
+                        self.check_call(callable_type,
+                                        args,
+                                        arg_kinds,
+                                        context,
+                                        arg_names,
+                                        callable_node,
+                                        callable_name,
+                                        object_type,
+                                        ))
+                    found = True
+                    args_copy[0].node.type.items = original_items
+                    print("found")
+            if not found:
+                # report missing error
+                # self.msg.incompatible_argument
+                print("\nerror reporting\n")
+                for callable_type in callables:
+                            self.check_call(callable_type,
+                                            args,
+                                            arg_kinds,
+                                            context,
+                                            arg_names,
+                                            callable_node,
+                                            callable_name,
+                                            object_type,
+                                            )
+
+        return IntersectionType([res[0] for res in results]), callee
+
+    def infer_calle_caller_args(self, arg_kinds, arg_names, args, callable_type, callee_arg_types_list):
+        formal_to_actual = map_actuals_to_formals(
+            arg_kinds,
+            arg_names,
+            callable_type.arg_kinds,
+            callable_type.arg_names,
+            lambda i: self.accept(args[i]),
+        )
+        caller_arg_types = self.infer_arg_types_in_context(callable_type, args, arg_kinds, formal_to_actual)
+        callee_arg_types = callable_type.arg_types
+        callee_arg_types_list.extend(callee_arg_types)
+        return callee_arg_types, caller_arg_types
 
     def has_callable(self, typ: Type) -> bool:
         if isinstance(typ, IntersectionType):
