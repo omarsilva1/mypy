@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from mypy.erasetype import erase_type, remove_instance_last_known_values
 from mypy.nodes import ARG_OPT, ARG_POS, ARG_STAR, ARG_STAR2, CONTRAVARIANT, COVARIANT, INVARIANT
-from mypy.subtypes import is_subtype, simplify_omega, \
+from mypy.subtypes import is_more_precise, is_proper_subtype, is_same_type, is_subtype, simplify_omega, \
     convert_to_cnf, convert_to_dnf, convert_to_anf, is_xi_subtype
 from mypy.test.helpers import Suite, assert_equal, assert_type, skip
-from mypy.test.typefixture import TypeFixture
+from mypy.test.typefixture import InterfaceTypeFixture, TypeFixture
 from mypy.types import (
     AnyType,
     CallableType,
@@ -44,18 +45,27 @@ class XiSubtypingSuite(Suite):
         fx = self.fx_co
         omega = fx.anyt
 
+        def intersect(*a: Type) -> IntersectionType:
+            return IntersectionType(list(a))
+
+        def union(*a: Type) -> UnionType:
+            return UnionType(list(a))
+
+        def arrow(self, *a: Type) -> CallableType:
+            return fx.callable(self, *a)
+
         test_cases = [
-            (IntersectionType([omega, fx.a]), fx.a),
-            (IntersectionType([fx.a, omega]), fx.a),
-            (IntersectionType([fx.a, fx.b, fx.d, omega]), IntersectionType([fx.a, fx.b, fx.d])),
-            (IntersectionType([fx.a, fx.d]), IntersectionType([fx.a, fx.d])),
-            (UnionType([omega, fx.a]), omega),
-            (UnionType([fx.a, omega]), omega),
-            (UnionType([fx.a, fx.b, fx.d, omega]), omega),
-            (UnionType([fx.a, fx.b, fx.d]), UnionType([fx.a, fx.b, fx.d])),
-            (fx.callable(fx.a, omega), omega),
-            (fx.callable(fx.a, fx.d), fx.callable(fx.a, fx.d)),
-            (fx.callable(omega, fx.a), fx.callable(omega, fx.a))
+            (intersect(omega, fx.a), fx.a),
+            (intersect(fx.a, omega), fx.a),
+            (intersect(fx.a, fx.b, fx.d, omega), intersect(fx.a, fx.b, fx.d)),
+            (intersect(fx.a, fx.d), intersect(fx.a, fx.d)),
+            (union(omega, fx.a), omega),
+            (union(fx.a, omega), omega),
+            (union(fx.a, fx.b, fx.d, omega), omega),
+            (union(fx.a, fx.b, fx.d), union(fx.a, fx.b, fx.d)),
+            (arrow(fx.a, omega), omega),
+            (arrow(fx.a, fx.d), arrow(fx.a, fx.d)),
+            (arrow(omega, fx.a), arrow(omega, fx.a))
         ]
 
         for test_case, expected_result in test_cases:
