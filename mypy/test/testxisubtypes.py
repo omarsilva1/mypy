@@ -227,12 +227,6 @@ class XiSubtypingSuite(Suite):
             # (a -> b) => (a -> b)
             (arrow(a, b), arrow(a, b)),
 
-            # a -> (b ∧ (c ∨ d)) => a -> ((b ∧ c) ∨ (b ∧ d))
-            (arrow(a, intersect(b, union(c, d))), arrow(a, union(intersect(b, c), intersect(b, d)))),
-
-            # (b ∧ (c ∨ d)) -> a => ((b ∧ c) ∨ (b ∧ d)) -> a
-            (arrow(intersect(b, union(c, d)), a), arrow(union(intersect(b, c), intersect(b, d)), a)),
-
         ]
 
         for test_case, expected_result in test_cases:

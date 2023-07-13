@@ -244,11 +244,6 @@ def distribute_intersection(term: IntersectionType, other_item_index: int, union
     return UnionType(new_intersections)
 
 def convert_to_cnf(term: Type) -> Type:
-    if isinstance(term, CallableType):
-        cnf_arg_types = [convert_to_cnf(arg) for arg in term.arg_types]
-        cnf_ret_type = convert_to_cnf(term.ret_type)
-        cnf_arrow = _construct_callable(cnf_arg_types, cnf_ret_type, term)
-        return cnf_arrow
     if isinstance(term, IntersectionType):
         return IntersectionType([convert_to_cnf(item) for item in term.items])
     if isinstance(term, UnionType):
@@ -262,11 +257,6 @@ def convert_to_cnf(term: Type) -> Type:
         return term
 
 def convert_to_dnf(term: Type) -> Type:
-    if isinstance(term, CallableType):
-        dnf_arg_types = [convert_to_dnf(arg) for arg in term.arg_types]
-        dnf_ret_type = convert_to_dnf(term.ret_type)
-        dnf_arrow = _construct_callable(dnf_arg_types, dnf_ret_type, term)
-        return dnf_arrow
     if isinstance(term, UnionType):
         return UnionType([convert_to_dnf(item) for item in term.items])
     if isinstance(term, IntersectionType):
