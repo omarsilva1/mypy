@@ -2782,7 +2782,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         with self.msg.disable_type_names():
 
             if self.has_callable(callee):
-                return self.handle_intersection_of_callables(callee, args, arg_kinds, context, arg_names, callable_node,
+                return self.handle_intersection_of_callables_new(callee, args, arg_kinds, context, arg_names, callable_node,
                                                              callable_name, object_type)
 
             results = [
@@ -2791,6 +2791,27 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             ]
 
         return (make_simplified_union([res[0] for res in results]), callee)
+
+    def handle_intersection_of_callables_new(
+        self,
+        callee: IntersectionType,
+        args: list[Expression],
+        arg_kinds: list[ArgKind],
+        context: Context,
+        arg_names: Sequence[str | None] | None,
+        callable_node: Expression | None,
+        callable_name: str | None,
+        object_type: Type | None
+    ):
+        if self.has_equal_ret_type(callee):
+            return self.check_call(self.make_simplified_callable(callee), args, arg_kinds, context, arg_names)
+        else:
+            # argument is intersection of the arg types of the callables
+            if is_subtype(args[0].node.type, IntersectionType(self.get_arg_types_of_callables(callee))):
+                return self.make_intersection_of_nested_callable(callee), callee
+
+        return None
+
 
     def handle_intersection_of_callables(
         self,
@@ -2832,8 +2853,12 @@ class ExpressionChecker(ExpressionVisitor[Type]):
             for callable_type in callables:
                 if is_subtype(union_item, callable_type.arg_types[0]):
                     args_copy = copy.copy(args)
-                    original_items = args_copy[0].node.type.items
-                    args_copy[0].node.type.items = [union_item]
+                    if isinstance(args_copy[0], CallExpr):
+                        original_items = args_copy[0].callee.node.type.items[0].ret_type
+                        args_copy[0].callee.node.type.items[0].ret_type = [union_item]
+                    else:
+                        original_items = args_copy[0].node.type.items
+                        args_copy[0].node.type.items = [union_item]
                     results.append(
                         self.check_call(callable_type,
                                         args,
@@ -2845,8 +2870,10 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                                         object_type,
                                         ))
                     found = True
-                    args_copy[0].node.type.items = original_items
-                    print("found")
+                    if isinstance(args_copy[0], CallExpr):
+                        args_copy[0].callee.node.type.items[0].ret_type = original_items
+                    else:
+                        args_copy[0].node.type.items = original_items
             if not found:
                 # report missing error
                 # self.msg.incompatible_argument
@@ -2876,6 +2903,20 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         callee_arg_types = callable_type.arg_types
         callee_arg_types_list.extend(callee_arg_types)
         return callee_arg_types, caller_arg_types
+
+    def make_intersection_of_nested_callable(self, typ: IntersectionType) -> IntersectionType:
+        callables = []
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                callables.append(item.ret_type)
+        return IntersectionType(callables)
+
+    def get_arg_types_of_callables(self, typ: IntersectionType):
+        arg_types = []
+        for item in typ.items:
+            if isinstance(item, CallableType):
+                arg_types.extend(item.arg_types)
+        return list(set(arg_types))
 
     def has_callable(self, typ: Type) -> bool:
         if isinstance(typ, IntersectionType):
