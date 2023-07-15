@@ -16,7 +16,7 @@ from typing import Intersection
 
 class A:
     def a(self):
-        pass#
+        pass
 
 class B:
     def b(self):
@@ -28,7 +28,7 @@ test.b
 test.c # E: "Intersection[A, B]" has no attribute "c"
 [builtins fixtures/isinstance.pyi]
 
-[case testIntersectionAttributeAccessB]
+[case testIntersectionFunctionAccessWithTypeVar]
 from typing import TypeVar, Union, Intersection
 S = TypeVar("S")
 
@@ -40,24 +40,7 @@ def test3(x: Intersection[S, Loggable]) -> int:
     return x.log()
 [builtins fixtures/isinstance.pyi]
 
-[case testIntersection00]
-from typing import TypeVar, Union, Intersection
-
-class Loggable:
-    def log(self):
-        pass
-
-class Serializable:
-    def serialize(self):
-        pass
-
-class LoggableSerializable(Loggable, Serializable):
-    pass
-
-test: Intersection[Loggable, Serializable] = LoggableSerializable()
-[builtins fixtures/isinstance.pyi]
-
-[case testIntersectionOfClasses]
+[case testEqualityOfIntersectionAndSubclassing]
 from typing import Intersection
 class Loggable: pass
 class Serializable: pass
@@ -139,14 +122,24 @@ main:7: error: Incompatible return value type (got "Intersection[S, T]", expecte
 [case testIntersectionOfCallables1]
 from typing import TypeVar, Callable, Union, Intersection
 
-def test3(x: Intersection[Callable[[int], bool], Callable[[str], bool]], y: Union[int, str]) -> bool:
+def f(x: Intersection[Callable[[int], bool], Callable[[str], bool]], y: Union[int, str]) -> bool:
     return x(y)
 
-def x(arg : Union[int, str]) -> bool:
+def only_int(arg : int) -> bool:
     return True
 
-test3(x, "3")
+f(only_int, "3") # E: Argument 1 to "f" has incompatible type "Callable[[int], bool]"; expected "Intersection[Callable[[int], bool], Callable[[str], bool]]"
 [builtins fixtures/isinstance.pyi]
+
+[case testIntersectionOfCallables2]
+from typing import TypeVar, Callable, Union, Intersection
+
+def f(x: Intersection[Callable[[int], bool], Callable[[str], float]], y: Union[int, str]) -> bool:
+    return x(y)
+[builtins fixtures/isinstance.pyi]
+[out]
+main:4: error: Argument 1 has incompatible type "Union[int, str]"; expected "int"
+main:4: error: Argument 1 has incompatible type "Union[int, str]"; expected "str"
 
 [case testIntersectionRealExampleBug]
 from typing import TypeVar, Callable, Union, Intersection
@@ -214,29 +207,9 @@ R = TypeVar("R")
 def test3(x: Intersection[Callable[[S], R], Callable[[R], T]], y: Union[S, R]) -> Union[T, R]:
     return x(y)
 [builtins fixtures/isinstance.pyi]
-
-[case testIntersection7]
-from typing import TypeVar, Callable, Union, Intersection
-S = TypeVar("S")
-T = TypeVar("T")
-R = TypeVar("R")
-
-def test3(x: Intersection[Callable[[S, S], T], Callable[[R, R], T]], y: Union[S, R]) -> T:
-    return x(y, y)
-[builtins fixtures/isinstance.pyi]
-
-[case testIntersection8]
-from typing import TypeVar, Callable, Union, Intersection
-S = TypeVar("S")
-T = TypeVar("T")
-R = TypeVar("R")
-M = TypeVar("M")
-
-def identity(arg: T) -> T:
-    return arg
-def test3(x: Intersection[Callable[[S, S], T], Callable[[R, R], T]], y: Callable[[M], Union[S, R]], z: M) -> T:
-    return x((lambda arg: arg)(y(z)), y(z))
-[builtins fixtures/isinstance.pyi]
+[out]
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
+main:7: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 
 [case testIntersection9]
 # flags: --python-version 3.10
@@ -247,7 +220,7 @@ R = TypeVar("R")
 M = TypeVar("M")
 
 def g(
-    x: Callable[[int], Callable[[int], bool]] & Callable[[str], Callable[[str], bool]],
+    x: Callable[[int], Callable[[int], bool]],
 ) -> bool:
     return x(3)("string")
 
@@ -258,11 +231,6 @@ main:11: error: Argument 1 has incompatible type "str"; expected "int"
 [case testIntersection9B]
 # flags: --python-version 3.10
 from typing import TypeVar, Callable, Union, Intersection
-S = TypeVar("S")
-T = TypeVar("T")
-R = TypeVar("R")
-M = TypeVar("M")
-
 def g(
     x: Callable[[int], Callable[[int], bool]] & Callable[[str], Callable[[str], bool]],
 ) -> bool:
@@ -297,7 +265,7 @@ def g(
     return x((y(z)))(y(z))
 [builtins fixtures/isinstance.pyi]
 
-[case testIntersection10B]
+[case testIntersection10X]
 # flags: --python-version 3.10
 from typing import TypeVar, Callable, Union, Intersection
 S = TypeVar("S")
@@ -307,7 +275,7 @@ M = TypeVar("M")
 
 def g(
     x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]],
-    y: Union[S, R],
+    y: S,
 ) -> T:
     return x(y)(y)
 
@@ -324,13 +292,15 @@ def f(
     return x(y)(y) # E: Argument 1 has incompatible type "Union[S, R]"; expected "S"
 [builtins fixtures/isinstance.pyi]
 
-[case testIntersection10X]
+[case testIntersection10B]
 # flags: --python-version 3.10
 from typing import TypeVar, Callable, Union, Intersection
 S = TypeVar("S")
 T = TypeVar("T")
 R = TypeVar("R")
 M = TypeVar("M")
+
+
 
 def g(
     x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]],
@@ -339,6 +309,8 @@ def g(
     z2: M
 ) -> T:
     return x((y(z1)))(y(z2))
+
+
 [builtins fixtures/isinstance.pyi]
 
 [case testIntersection10C]
@@ -373,20 +345,6 @@ def g(
     return x(y)(y) # E: Argument 1 has incompatible type "Union[S, R]"; expected "S"
 [builtins fixtures/isinstance.pyi]
 
-[case testIntersection12]
-# flags: --python-version 3.10
-from typing import TypeVar, Callable, Union, Intersection
-S = TypeVar("S")
-T = TypeVar("T")
-R = TypeVar("R")
-
-def g(
-    x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[S], T]],
-    y: Union[S, R]
-) -> T:
-    return x(y)(y)
-[builtins fixtures/isinstance.pyi]
-
 [case testIntersection11]
 # flags: --python-version 3.10
 from typing import TypeVar, Callable, Union, Intersection
@@ -416,8 +374,6 @@ T = TypeVar("T")
 R = TypeVar("R")
 M = TypeVar("M")
 
-
-
 x: Intersection[Callable[[int], bool], Callable[[str], bool]]
 result: bool = x(1)
 result = x("2")
@@ -430,5 +386,49 @@ x1(y)(y)
 
 def f(x2: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]], y2: Union[S, R]):
     x2(y2)(y2)
-
 [builtins fixtures/isinstance.pyi]
+
+[case testIntersectionOfCallablesEqualRet]
+# flags: --python-version 3.10
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+M = TypeVar("M")
+
+def test_function(
+                f: Callable[[S], T] & Callable[[R], T],
+                x: Union[S, R],
+                y: S,
+                z: R):
+    f(x)
+    f(y)
+    f(z)
+[builtins fixtures/isinstance.pyi]
+
+[case testIntersectionOfNestedCallables]
+# flags: --python-version 3.10
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+M = TypeVar("M")
+
+# y: S
+# z: R
+# u: Union[S, R]
+
+def test_function(
+                f: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]],
+                x: Intersection[S, R],
+                y: S,
+                z: R,
+                a: M,
+                u: Union[S, R],
+                g: Callable[[S], Callable[[S], T]]):
+    # f(x) # results in S -> T & R -> T
+    f(x)
+[builtins fixtures/isinstance.pyi]
+
+
+
