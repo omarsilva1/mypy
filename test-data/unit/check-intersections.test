@@ -399,3 +399,21 @@ def test_function(
 [builtins fixtures/isinstance.pyi]
 
 
+
+[case testIntersectionOfCallablesWithMultipleArgs]
+# flags: --python-version 3.10
+from typing import TypeVar, Callable, Union, Intersection
+S = TypeVar("S")
+T = TypeVar("T")
+R = TypeVar("R")
+M = TypeVar("M")
+
+# y: S
+# z: R
+# u: Union[S, R]
+
+def test_function(
+                f: Callable[[S, S], T] & Callable[[R, R], T],
+                x: Intersection[S, R]):
+    f(x, x)
+[builtins fixtures/isinstance.pyi]

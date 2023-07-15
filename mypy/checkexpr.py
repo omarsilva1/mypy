@@ -1301,16 +1301,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         elif isinstance(callee, UnionType):
             return self.check_union_call(callee, args, arg_kinds, arg_names, context)
         elif isinstance(callee, IntersectionType):
-            return self.check_intersection_call(
-                callee,
-                args,
-                arg_kinds,
-                context,
-                arg_names,
-                callable_node,
-                callable_name,
-                object_type,
-            )
+            return self.check_intersection_call(callee, args, arg_kinds, context, arg_names)
         elif isinstance(callee, Instance):
             call_function = analyze_member_access(
                 "__call__",
@@ -2775,15 +2766,11 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         arg_kinds: list[ArgKind],
         context: Context,
         arg_names: Sequence[str | None] | None,
-        callable_node: Expression | None,
-        callable_name: str | None,
-        object_type: Type | None
     ) -> tuple[Type, Type]:
         with self.msg.disable_type_names():
 
             if self.has_callable(callee):
-                return self.handle_intersection_of_callables_new(callee, args, arg_kinds, context, arg_names, callable_node,
-                                                             callable_name, object_type)
+                return self.handle_intersection_of_callables_new(callee, args, arg_kinds, context, arg_names)
 
             results = [
                 self.check_call(subtype, args, arg_kinds, context, arg_names)
@@ -2798,10 +2785,7 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         args: list[Expression],
         arg_kinds: list[ArgKind],
         context: Context,
-        arg_names: Sequence[str | None] | None,
-        callable_node: Expression | None,
-        callable_name: str | None,
-        object_type: Type | None
+        arg_names: Sequence[str | None] | None
     ):
         if self.has_equal_ret_type(callee):
             return self.check_call(self.make_simplified_callable(callee), args, arg_kinds, context, arg_names)
@@ -2993,20 +2977,28 @@ class ExpressionChecker(ExpressionVisitor[Type]):
     # merge callables by applying the rule
     # A -> B & C -> B to A | C -> B
     def merge_callables(self, callables: List) -> CallableType:
-        arg_types = []
-        for item in callables:
-            arg_types.extend(item.arg_types)
-
+        arg_types = self.make_union_of_args(callables)
         ret_type = callables[0].ret_type
-
         new_callable = CallableType(
-            arg_types=[UnionType(arg_types)],
+            arg_types=arg_types,
             arg_kinds=callables[0].arg_kinds,
             arg_names=callables[0].arg_names,
             ret_type=ret_type,
             fallback=callables[0].fallback,
         )
         return new_callable
+
+    def make_union_of_args(self, callables):
+        arg_types = [item.arg_types for item in callables]
+
+        result = []
+        for i in range(len(arg_types[0])):
+            args = [arg_types[0][i]]
+            for j in range(1, len(arg_types)):
+                args.append(arg_types[j][i])
+            result.append(UnionType(args))
+
+        return result
 
     def has_equal_ret_type(self, typ: IntersectionType) -> bool:
         # Check if the return type is equal
