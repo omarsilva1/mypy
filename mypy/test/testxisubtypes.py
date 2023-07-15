@@ -388,7 +388,7 @@ class XiSubtypingSuite(Suite):
         print(test_cases[current_test_case][1])
         assert_equal(converted, test_cases[current_test_case][1])
 
-    def test_is_BCDd95_subtype(self) -> None:
+    def test_is_xi_subtype(self) -> None:
         fx = self.fx_co
 
         def intersect(*a: Type) -> IntersectionType:

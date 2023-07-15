@@ -344,15 +344,20 @@ def is_xi_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=
     right = get_type(right)
 
     if subtype_context is None:
-        subtype_context = SubtypeContext(
-            ignore_type_params=False,
-            ignore_pos_arg_names=False,
-            ignore_declared_variance=False,
-            ignore_promotions=False,
-            ignore_uninhabited=False,
-            options=None,
-        )
+        subtype_context = initialize_default_context()
     return _is_xi_subtype(danf(left), canf(right), subtype_context, proper_subtype)
+
+
+def initialize_default_context():
+    return SubtypeContext(
+        ignore_type_params=False,
+        ignore_pos_arg_names=False,
+        ignore_declared_variance=False,
+        ignore_promotions=False,
+        ignore_uninhabited=False,
+        options=None,
+    )
+
 
 def is_proper_subtype(
     left: Type,

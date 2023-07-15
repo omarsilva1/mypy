@@ -79,9 +79,11 @@ class B:
     def b(self):
         pass
 
-test: Intersection[A,B] = None
-test() # E: "B" not callable
+class C(A,B):
+    pass
 
+test: Intersection[A,B] = C()
+test()
 [builtins fixtures/isinstance.pyi]
 
 [case testIntersection0]
