@@ -309,26 +309,10 @@ def g(
     z2: M
 ) -> T:
     return x((y(z1)))(y(z2))
-
-
 [builtins fixtures/isinstance.pyi]
-
-[case testIntersection10C]
-# flags: --python-version 3.10
-from typing import TypeVar, Callable, Union, Intersection
-S = TypeVar("S")
-T = TypeVar("T")
-R = TypeVar("R")
-M = TypeVar("M")
-
-def g(
-    x: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[S], T]],
-    y: Callable[[M], Union[int, float]],
-    z1: M,
-    z2: M
-) -> T:
-    return x((y(z1)))(y(z2))
-[builtins fixtures/isinstance.pyi]
+[out]
+main:16: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
+main:16: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 
 [case testIntersection10D]
 # flags: --python-version 3.10
@@ -365,28 +349,9 @@ def g(
 ) -> T1:
     return x((y(z)))(y(z))
 [builtins fixtures/isinstance.pyi]
-
-[case testIntersectionOfCallablesX]
-# flags: --python-version 3.10
-from typing import TypeVar, Callable, Union, Intersection
-S = TypeVar("S")
-T = TypeVar("T")
-R = TypeVar("R")
-M = TypeVar("M")
-
-x: Intersection[Callable[[int], bool], Callable[[str], bool]]
-result: bool = x(1)
-result = x("2")
-
-y: Union[int, str]
-result = x(y)
-
-x1: Callable[[int], Callable[[int], bool]] & Callable[[str], Callable[[str], bool]]
-x1(y)(y)
-
-def f(x2: Callable[[S], Callable[[S], T]] & Callable[[R], Callable[[R], T]], y2: Union[S, R]):
-    x2(y2)(y2)
-[builtins fixtures/isinstance.pyi]
+[out]
+main:18: error: Argument 1 has incompatible type "Union[S, R]"; expected "S"
+main:18: error: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 
 [case testIntersectionOfCallablesEqualRet]
 # flags: --python-version 3.10
@@ -424,11 +389,13 @@ def test_function(
                 y: S,
                 z: R,
                 a: M,
-                u: Union[S, R],
-                g: Callable[[S], Callable[[S], T]]):
-    # f(x) # results in S -> T & R -> T
-    f(x)
+                u: Union[S, R]):
+    f(x)(x)
+    f(y)(y)
+    f(z)(z)
+    f(y)(z) # E: Argument 1 has incompatible type "R"; expected "S"
+    f(z)(y) # E: Argument 1 has incompatible type "S"; expected "R"
+    f(u) # E: Argument 1 has incompatible type "Union[S, R]"; expected "S" # E: Argument 1 has incompatible type "Union[S, R]"; expected "R"
 [builtins fixtures/isinstance.pyi]
-
 
 

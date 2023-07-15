@@ -2990,16 +2990,14 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                     callables_to_merge.append(item)
         return self.merge_callables(callables_to_merge)
 
+    # merge callables by applying the rule
+    # A -> B & C -> B to A | C -> B
     def merge_callables(self, callables: List) -> CallableType:
         arg_types = []
         for item in callables:
             arg_types.extend(item.arg_types)
 
-        if isinstance(callables[0].ret_type, CallableType):
-            ret_callables = [item.ret_type for item in callables]
-            ret_type = self.merge_callables(ret_callables)
-        else:
-            ret_type = callables[0].ret_type
+        ret_type = callables[0].ret_type
 
         new_callable = CallableType(
             arg_types=[UnionType(arg_types)],
