@@ -332,10 +332,17 @@ def _is_xi_subtype(left: Type, right: Type, subtype_context, proper_subtype) -> 
         return _is_subtype(left, right, subtype_context, proper_subtype)
 
 
+def get_type(typ: Type) -> Type:
+    if isinstance(typ, Instance):
+        if hasattr(typ.type, "bases") and len(typ.type.bases) > 1:
+            return IntersectionType(typ.type.bases)
+    return get_proper_type(typ)
+
+
 def is_xi_subtype(left: Type, right: Type, subtype_context=None, proper_subtype=False) -> bool:
-    left = get_proper_type(left)
-    right = get_proper_type(right)
-    # TODO OMAR: transform classes with multiple inheritance to intersection type
+    left = get_type(left)
+    right = get_type(right)
+
     if subtype_context is None:
         subtype_context = SubtypeContext(
             ignore_type_params=False,
