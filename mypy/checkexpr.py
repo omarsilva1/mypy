@@ -2773,6 +2773,10 @@ class ExpressionChecker(ExpressionVisitor[Type]):
                 return self.handle_intersection_call(arg_kinds, arg_names, args, callee, context)
 
     def handle_intersection_call(self, arg_kinds, arg_names, args, callee, context):
+        for item in callee.relevant_items():
+            if hasattr(item, "type"):
+                if "__call__" in item.type.names:
+                    return (item, callee)
         results = [
             self.check_call(subtype, args, arg_kinds, context, arg_names)
             for subtype in callee.relevant_items()

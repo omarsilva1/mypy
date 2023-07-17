@@ -459,7 +459,6 @@ def analyze_intersection_member_access(name: str, typ: IntersectionType, mx: Mem
     result = IntersectionType([AnyType(type_of_any=5)])
     with mx.msg.disable_type_names():
         for type_item in typ.relevant_items():
-            # TODO OMAR Use info = typ.type -> info.get_method(name) instead of iterating
             if hasattr(type_item, "type"):
                 if name in type_item.type.names:
                     has_member = True
