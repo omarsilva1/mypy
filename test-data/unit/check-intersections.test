@@ -105,6 +105,7 @@ class A:
         self.a = 1
 
 class B:
+    def __init__(self):
         self.a = 2
 
 test: Intersection[A, B] = None
