@@ -2895,7 +2895,6 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         callables_to_merge = []
         for item in typ.items:
             if isinstance(item, CallableType):
-                # TODO OMAR: change from equal to subtype
                 if self.get_recursive_ret_type(item) == ret_type:
                     callables_to_merge.append(item)
         return self.merge_callables(callables_to_merge)
@@ -2933,7 +2932,6 @@ class ExpressionChecker(ExpressionVisitor[Type]):
         # check if all recursive return types of callables are the same
         for item in typ.items:
             if isinstance(item, CallableType):
-                # TODO OMAR: change from equal to subtype
                 if item.ret_type != ret_type:
                     return False
         return True

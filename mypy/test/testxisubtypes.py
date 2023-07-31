@@ -257,7 +257,6 @@ class XiSubtypingSuite(Suite):
 
         test_cases = [
 
-            # TODO OMAR: new case [(a ∨ b), c, d] -> e => ([a, c, d] -> e) ∧ ([b, c, d] -> e)
             (arrow(union(a, b), c, d, e), intersect(
                 arrow(a, c, d, e),
                 arrow(b, c, d, e)
@@ -366,12 +365,7 @@ class XiSubtypingSuite(Suite):
                 arrow(intersect(a, c), union(d, f)),
             )),
         ]
-        # self.test_single_case(test_cases, 10)
-        #
         for index, (test_case, expected_result) in enumerate(test_cases):
-            print(f"Index: {index}")
-            print(test_case)
-            print(expected_result)
             converted = convert_to_anf(test_case)
             assert_equal(converted, expected_result)
 
@@ -451,7 +445,6 @@ class XiSubtypingSuite(Suite):
             # a1 <= a2, b1 <= b2 => a1 ∨ b1 <=  a2 ∨ b2
             (union(a1, b1), union(a2, b2)),
 
-            # d1 <= e1, e1 <= f1 => d1 <= f1 TODO OMAR: this doesnt work with AnyType
             (d1, f1),
 
             # (a ∧ (b ∨ c)) <= ((a ∧ b) ∨ (a ∧ c))
@@ -555,8 +548,6 @@ class XiSubtypingSuite(Suite):
             fx.callable(sigma_two, tau_two)
         )
 
-        # TODO OMAR: add subtyping without inheritance through abc
-        #   https://stackoverflow.com/questions/38275148/python-subclass-that-doesnt-inherit-attributes
 
     # Helpers
 

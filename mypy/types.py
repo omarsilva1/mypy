@@ -2704,7 +2704,7 @@ class UnionType(ProperType):
 class IntersectionType(ProperType):
     """The intersection type Intersection[T1, ..., Tn] (at least one type argument)."""
 
-    __slots__ = ("items", "is_evaluated", "uses_pep604_syntax")
+    __slots__ = ("items", "is_evaluated")
 
     def __init__(
         self,
@@ -2712,16 +2712,11 @@ class IntersectionType(ProperType):
         line: int = -1,
         column: int = -1,
         is_evaluated: bool = True,
-        uses_pep604_syntax: bool = False,
     ) -> None:
         super().__init__(line, column)
-        # We must keep this false to avoid crashes during semantic analysis.
-        # TODO: maybe switch this to True during type-checking pass?
         self.items = flatten_nested_intersections(items, handle_type_alias_type=False)
         # is_evaluated should be set to false for type comments and string literals
         self.is_evaluated = is_evaluated
-        # uses_pep604_syntax is True if Union uses OR syntax (X | Y)
-        self.uses_pep604_syntax = uses_pep604_syntax
 
     def can_be_true_default(self) -> bool:
         return any(item.can_be_true for item in self.items)
@@ -2775,7 +2770,6 @@ class IntersectionType(ProperType):
         )
 
     def relevant_items(self) -> list[Type]:
-        # TODO OMAR: assess if this should really be like this
         """Removes NoneTypes from Intersections when strict Optional checking is off."""
         if state.strict_optional:
             return self.items
@@ -2900,7 +2894,6 @@ class TypeType(ProperType):
     def make_normalized(item: Type, *, line: int = -1, column: int = -1) -> ProperType:
         item = get_proper_type(item)
         if isinstance(item, UnionType):
-            # TODO OMAR: add intersection type
             return UnionType.make_union(
                 [TypeType.make_normalized(union_item) for union_item in item.items],
                 line=line,
@@ -3583,7 +3576,6 @@ def bad_type_type_item(item: Type) -> bool:
     if isinstance(item, TypeType):
         return True
     if isinstance(item, UnionType):
-        # TODO OMAR: add intersection
         return any(
             isinstance(get_proper_type(i), TypeType) for i in flatten_nested_unions(item.items)
         )
@@ -3593,7 +3585,6 @@ def bad_type_type_item(item: Type) -> bool:
 def is_union_with_any(tp: Type) -> bool:
     """Is this a union with Any or a plain Any type?"""
     tp = get_proper_type(tp)
-    # TODO OMAR: add intersection
     if isinstance(tp, AnyType):
         return True
     if not isinstance(tp, UnionType):

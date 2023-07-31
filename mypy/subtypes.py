@@ -173,7 +173,6 @@ def is_subtype(
         #     B = Union[int, Tuple[B, ...]]
         # When checking if A <: B we push pair (A, B) onto 'assuming' stack, then when after few
         # steps we come back to initial call is_subtype(A, B) and immediately return True.
-        # TODO OMAR: add intersection check for recursive intersection types
         with pop_on_exit(type_state.get_assumptions(is_proper=False), left, right):
             return _is_subtype(left, right, subtype_context, proper_subtype=False)
     if has_recursive_types(left) or has_recursive_types(right):
@@ -187,7 +186,6 @@ def simplify_omega(term: Type) -> Type:
     if isinstance(term, UnionType):
         return AnyType(TypeOfAny.explicit) if any(isinstance(item, AnyType) for item in term.items) else term
     if isinstance(term, CallableType):
-        # TODO OMAR: check alias type like in visit_intersection_type
         return AnyType(TypeOfAny.explicit) if isinstance(term.ret_type, AnyType) else term
     return term
 
@@ -270,7 +268,6 @@ def convert_to_dnf(term: Type) -> Type:
         return term
 
 
-#  TODO OMAR: think about rules for callable with multiple arguments and hwo to subtype that
 def convert_to_anf(term: Type) -> Type:
     if isinstance(term, UnionType):
         return UnionType([convert_to_anf(item) for item in term.items])
@@ -1119,53 +1116,6 @@ class SubtypeVisitor(TypeVisitor[bool]):
 
         return all(self._is_subtype(item, self.orig_right) for item in left.items)
 
-    # def visit_intersection_type(self, left: IntersectionType) -> bool:
-    #     if isinstance(self.right, Instance):
-    #         return any(self._is_subtype(item, self.orig_right) for item in left.relevant_items())
-    #
-    #     elif isinstance(self.right, IntersectionType):
-    #         # prune literals early to avoid nasty quadratic behavior which would otherwise arise when checking
-    #         # subtype relationships between slightly different narrowings of an Enum
-    #         # we achieve O(N+M) instead of O(N*M)
-    #         fast_check: set[ProperType] = set()
-    #
-    #         for item in _flattened(left.relevant_items()):
-    #             p_item = get_proper_type(item)
-    #             if isinstance(p_item, LiteralType):
-    #                 fast_check.add(p_item)
-    #             elif isinstance(p_item, Instance):
-    #                 if p_item.last_known_value is None:
-    #                     fast_check.add(p_item)
-    #                 else:
-    #                     fast_check.add(p_item.last_known_value)
-    #
-    #         # TODO OMAR: should we check if types are incompatible?
-    #         for item in self.right.relevant_items():
-    #             p_item = get_proper_type(item)
-    #             if p_item in fast_check:
-    #                 continue
-    #             lit_type = mypy.typeops.simple_literal_type(p_item)
-    #             if lit_type in fast_check:
-    #                 continue
-    #             if not any(self._is_subtype(fast_check_item, item) for fast_check_item in fast_check):
-    #                 return False
-    #         return True
-    #     elif isinstance(self.right, CallableType):
-    #         # TODO OMAR: only implemented for the case that sigma is one type only, could be extended recursively
-    #         # check case where (σ -> τ1) & (σ -> τ2) <= σ -> (τ1 & τ2)
-    #         # check left hand sigma is equal
-    #         if len(left.items) == 2:
-    #             callable_types = [item.alias.target if isinstance(item, TypeAliasType) else item for item in left.items]
-    #
-    #             # check if right hand sigma is equal to left
-    #             if type(self.right) == CallableType and callable_types[0].arg_types == self.right.arg_types:
-    #                 # check if t1 und t2 are in right hand return types
-    #                 for left_item in callable_types:
-    #                     if left_item.ret_type not in self.right.ret_type.items:
-    #                         return False
-    #                 return True
-    #
-    #     return all(self._is_subtype(item, self.orig_right) for item in left.items)
 
     def visit_partial_type(self, left: PartialType) -> bool:
         # This is indeterminate as we don't really know the complete type yet.
